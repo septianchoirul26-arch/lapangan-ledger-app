@@ -154,19 +154,6 @@
   .log-row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; }
   .log-row .t { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; flex: none; }
 
-  /* ---- KPI cards ---- */
-  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
-  @media (max-width: 980px) { .kpi-row { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 560px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
-  .kpi { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
-  .kpi .label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
-  .kpi .value { font-family: var(--mono); font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .kpi .value.neg { color: var(--danger); }
-  .kpi .value.pos { color: var(--good); }
-  .kpi .sub { font-size: 11.5px; color: var(--ink-muted); }
-  .growth { white-space: nowrap; }
-  .growth.pos { color: var(--good); }
-  .growth.neg { color: var(--danger); }
   .growth-cell { font-size: 12px; color: var(--ink-faint); white-space: nowrap; }
   .growth-cell.pos { color: var(--good); }
   .growth-cell.neg { color: var(--danger); }
@@ -299,7 +286,7 @@
       <h2>Unggah data bulanan</h2>
       <span class="hint">Format CSV atau XLSX &middot; data digabung otomatis ke riwayat</span>
     </div>
-    <div class="card upload-grid">
+    <div class="card upload-grid" style="grid-template-columns: repeat(2, 1fr);">
       <div class="dropzone" id="dz-pencairan">
         <input type="file" id="file-pencairan" accept=".csv,.xlsx" multiple />
         <span class="dz-icon">Rp</span>
@@ -314,12 +301,21 @@
         <p>Export daftar pesanan (Order ID, SKU ID, Qty). Dipakai untuk mencari HPP tiap order.</p>
         <div class="status-line" id="status-pesanan"></div>
       </div>
-      <div class="dropzone" id="dz-modal">
-        <input type="file" id="file-modal" accept=".csv,.xlsx" />
-        <span class="dz-icon">M</span>
-        <h3>Harga Modal SKU</h3>
-        <p>Daftar ID SKU + harga modal per unit. Update kapan saja saat modal berubah.</p>
-        <div class="status-line" id="status-modal"></div>
+    </div>
+    <div class="card" style="padding: 14px 18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <h3 style="font-size:14.5px;">Harga Modal SKU</h3>
+          <div class="status-line" id="status-modal" style="margin-top:2px;"></div>
+        </div>
+        <button class="help-toggle" id="modal-toggle">Kelola Harga Modal SKU</button>
+      </div>
+      <div class="help-body" id="modal-body">
+        <div class="dropzone" id="dz-modal" style="position:relative;border:none;padding:12px 0 0;">
+          <input type="file" id="file-modal" accept=".csv,.xlsx" />
+          <p>Upload file dengan kolom <code>ID SKU</code> dan <code>Harga Modal</code>. Boleh diupload ulang kapan saja untuk menambah SKU baru atau update harga yang sudah ada.</p>
+        </div>
+        <div id="modal-conflicts"></div>
       </div>
     </div>
     <div class="card" style="padding: 14px 18px;">
@@ -336,7 +332,12 @@
         <p>File boleh format <b>.csv</b> atau <b>.xlsx</b> langsung, tidak perlu convert manual.</p>
       </div>
     </div>
-    <div class="log" id="upload-log"></div>
+    <div class="card" style="padding: 10px 18px;">
+      <button class="help-toggle" id="log-toggle">Lihat riwayat upload</button>
+      <div class="help-body" id="log-body">
+        <div class="log" id="upload-log"></div>
+      </div>
+    </div>
   </section>
 
   <div id="dashboard"></div>
@@ -399,6 +400,8 @@
     root.activeStore = id;
     state = root.stores[id];
     expandedMonth = null;
+    var conflictsEl = document.getElementById("modal-conflicts");
+    if (conflictsEl) conflictsEl.innerHTML = ""; // konflik file lama tidak relevan buat toko lain
     persist();
   }
 
@@ -947,7 +950,14 @@
     var idxSku = findCol(headers, MODAL_COLS.SKU);
     var idxHarga = findCol(headers, MODAL_COLS.HARGA);
     if (idxSku === -1 || idxHarga === -1) throw new Error("Butuh kolom ID SKU dan Harga Modal.");
-    var added = 0;
+
+    // seenInFile: harga TERAKHIR yang sudah dibaca untuk ID SKU ini SEJAUH INI di file yang sama --
+    // dipakai buat deteksi ID SKU yang muncul >1x dengan harga berbeda dalam satu file (biasanya
+    // typo/salah copy-paste di sumbernya). Nilai akhir yang benar-benar dipakai tetap baris
+    // PALING BAWAH (mengikuti urutan file), konflik cuma dilaporkan, tidak menghentikan upload.
+    var seenInFile = {};
+    var conflicts = []; // [{sku, hargaLama, hargaBaru}]
+    var added = 0, updated = 0;
     for (var i = 1; i < rows.length; i++) {
       var raw = rows[i];
       if (!raw || !raw.length) continue;
@@ -955,11 +965,26 @@
       if (!sku) continue;
       var harga = toNumber(raw[idxHarga]);
       if (harga <= 0) continue;
+
+      if (seenInFile.hasOwnProperty(sku) && seenInFile[sku] !== harga) {
+        conflicts.push({ sku: sku, hargaLama: seenInFile[sku], hargaBaru: harga });
+      }
+      seenInFile[sku] = harga;
+
+      // added: SKU benar-benar baru. updated: SKU sudah ada tapi harganya berubah dari sebelumnya
+      // (perubahan harga wajar, bukan error). Kalau harga sama persis dengan yang tersimpan
+      // sebelumnya -- diam saja, tidak dihitung sebagai perubahan apa pun.
+      var prev = state.skuCost[sku];
+      if (prev == null) added++;
+      else if (prev !== harga) updated++;
       state.skuCost[sku] = harga;
-      added++;
     }
-    logUpload("Harga Modal SKU", fileName, added, "");
-    return { added: added };
+
+    var extraParts = [];
+    if (updated) extraParts.push(updated + " diupdate");
+    if (conflicts.length) extraParts.push(conflicts.length + " ID SKU bentrok dalam file ini");
+    logUpload("Harga Modal SKU", fileName, added, extraParts.join(", "));
+    return { added: added, updated: updated, conflicts: conflicts };
   }
 
   /* ================= Compute ================= */
@@ -1217,6 +1242,24 @@
 
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 
+  // Ditampilkan setelah upload Harga Modal SKU kalau ada ID SKU yang muncul >1x dalam file yang
+  // sama dengan harga berbeda (lihat processModal()) -- supaya user bisa cek & revisi file
+  // sumbernya, bukan diam-diam ketimpa. `results` = array hasil processModal() per file yang
+  // berhasil diproses dalam satu event upload (biasanya cuma 1 file, dropzone ini bukan `multiple`).
+  function renderModalConflicts(results) {
+    var el = document.getElementById("modal-conflicts");
+    if (!el) return;
+    var conflicts = [];
+    results.forEach(function (r) { if (r && r.conflicts) conflicts = conflicts.concat(r.conflicts); });
+    if (!conflicts.length) { el.innerHTML = ""; return; }
+    var rows = conflicts.map(function (c) {
+      return '<li><span>ID SKU ' + esc(c.sku) + '</span><span class="amt">' + rp(c.hargaLama) + " &rarr; " + rp(c.hargaBaru) + "</span></li>";
+    }).join("");
+    el.innerHTML = '<div class="note" style="border-color:var(--warn);margin-top:10px;">' +
+      "<b>" + conflicts.length + " ID SKU punya harga berbeda dalam file yang sama.</b> Harga yang dipakai adalah nilai di baris paling bawah untuk tiap SKU. Cek daftar ini, revisi file sumbernya kalau ada yang salah ketik, lalu upload ulang." +
+      '<ul class="fee-list" style="margin-top:8px;">' + rows + "</ul></div>";
+  }
+
   function renderFooter() {
     var storeLabel = "Toko aktif: " + storeName(root.activeStore);
     document.getElementById("footer-stats").textContent = storeLabel +
@@ -1230,12 +1273,7 @@
       host.innerHTML = '<div class="card empty"><div class="big">Belum ada data</div>Unggah Data Pencairan bulan pertama untuk mulai melihat ringkasan Omzet, HPP, dan Laba Usaha di sini.</div>';
       return;
     }
-    var latest = months[months.length - 1];
-
     var html = "";
-    html += '<section><div class="section-head"><h2>Ringkasan bulan terbaru &mdash; ' + monthLabel(latest.ym) + "</h2></div>";
-    html += '<div class="kpi-row">' + kpiCards(latest) + "</div></section>";
-
     html += '<section><div class="section-head"><h2>Tren bulanan</h2><span class="hint">Omzet, HPP, Laba Usaha</span></div>';
     html += '<div class="card chart-card">' + trendChart(months) + "</div></section>";
 
@@ -1308,33 +1346,6 @@
         downloadFile("sku-belum-ada-harga-modal.csv", missingSkusCsv(), "text/csv");
       });
     }
-  }
-
-  // Badge kecil "▲ 12.3% vs bulan lalu" -- null kalau tidak ada bulan sebelumnya atau salah
-  // satu sisinya belum bisa dihitung (lihat growthPct() di computeMonthly()).
-  function growthBadge(g) {
-    if (g == null) return "";
-    var cls = g > 0 ? "pos" : (g < 0 ? "neg" : "");
-    var arrow = g > 0 ? "▲" : (g < 0 ? "▼" : "▬");
-    return ' <span class="growth ' + cls + '">' + arrow + " " + pct(Math.abs(g)) + " vs bulan lalu</span>";
-  }
-
-  function kpiCards(m) {
-    function card(label, val, sub, cls) {
-      return '<div class="card kpi"><div class="label">' + label + '</div><div class="value' + (cls ? " " + cls : "") + '">' + val + '</div>' + (sub ? '<div class="sub">' + sub + "</div>" : "") + "</div>";
-    }
-    var hppSub = m.hppComplete
-      ? pct(m.qtyCoverage) + " qty tercakup harga modal"
-      : (m.ordersMatched === 0 ? "Upload Data Pesanan untuk menghitung ini" : "Upload Harga Modal SKU untuk menghitung ini");
-    var g = m.growth || {};
-    return (
-      card("Omzet (Total Pendapatan)", rp(m.pendapatan), growthBadge(g.pendapatan) || null) +
-      card("HPP", m.hppComplete ? rp(m.hppTotal) : "—", hppSub + growthBadge(g.hppTotal)) +
-      card("Laba Kotor", rpOrDash(m.labaKotor), (m.labaKotor != null ? pct(m.marginKotor) + " margin" : "Menunggu HPP") + growthBadge(g.labaKotor), m.labaKotor != null && m.labaKotor >= 0 ? "pos" : (m.labaKotor != null ? "neg" : "")) +
-      card("Biaya Platform", rp(m.biayaTotal), null, "neg") +
-      card("Laba Usaha", rpOrDash(m.labaUsaha), (m.labaUsaha != null ? pct(m.marginUsaha) + " margin" : "Menunggu HPP") + growthBadge(g.labaUsaha), m.labaUsaha != null && m.labaUsaha >= 0 ? "pos" : (m.labaUsaha != null ? "neg" : "")) +
-      card("Order Cocok SKU", pct(m.matchRate), m.ordersMatched + " / " + (m.ordersMatched + m.ordersUnmatched) + " order")
-    );
   }
 
   function trendChart(months) {
@@ -1731,22 +1742,23 @@
   }
 
   /* ================= Wiring ================= */
-  function wireDropzone(inputId, handler, label, colsDef, requiredKeys) {
+  function wireDropzone(inputId, handler, label, colsDef, requiredKeys, onResults) {
     var input = document.getElementById(inputId);
     input.addEventListener("change", async function (e) {
       var files = Array.prototype.slice.call(e.target.files || []);
       if (!files.length) return;
-      var okCount = 0, errMsgs = [];
+      var okCount = 0, errMsgs = [], results = [];
       for (var i = 0; i < files.length; i++) {
         try {
           var rows = await parseUploadedFile(files[i], colsDef, requiredKeys);
-          handler(rows, files[i].name);
+          results.push(handler(rows, files[i].name));
           okCount++;
         } catch (err) {
           errMsgs.push(files[i].name + ": " + err.message);
         }
       }
       input.value = "";
+      if (onResults) onResults(results);
       if (okCount) await persist(okCount + " file " + label + " berhasil diproses.");
       if (errMsgs.length) showToast("Gagal: " + errMsgs.join(" | "));
     });
@@ -1831,11 +1843,17 @@
     state = root.stores[root.activeStore];
     wireDropzone("file-pencairan", processPencairan, "Data Pencairan", PENCAIRAN_COLS, ["ID", "JENIS", "WPEMBAYARAN", "PENDAPATAN"]);
     wireDropzone("file-pesanan", processPesanan, "Data Pesanan", PESANAN_COLS, ["ORDER", "SKU", "QTY"]);
-    wireDropzone("file-modal", processModal, "Harga Modal", MODAL_COLS, ["SKU", "HARGA"]);
+    wireDropzone("file-modal", processModal, "Harga Modal", MODAL_COLS, ["SKU", "HARGA"], renderModalConflicts);
     initDragVisuals();
 
     document.getElementById("help-toggle").addEventListener("click", function () {
       document.getElementById("help-body").classList.toggle("open");
+    });
+    document.getElementById("modal-toggle").addEventListener("click", function () {
+      document.getElementById("modal-body").classList.toggle("open");
+    });
+    document.getElementById("log-toggle").addEventListener("click", function () {
+      document.getElementById("log-body").classList.toggle("open");
     });
 
     document.getElementById("btn-reset").addEventListener("click", function () {
