@@ -301,7 +301,7 @@
         <input type="file" id="file-pencairan" accept=".csv,.xlsx" multiple />
         <span class="dz-icon">Rp</span>
         <h3>Data Pencairan</h3>
-        <p>Export "Income" dari Seller Center. Sumber Omzet &amp; Biaya Platform bulanan.</p>
+        <p>Export "Income" dari Seller Center. Sumber Net Sales &amp; Platform Fee bulanan.</p>
         <div class="status-line" id="status-pencairan"></div>
       </div>
       <div class="dropzone" id="dz-pesanan">
@@ -423,7 +423,12 @@
   var PROW = { ID: 0, JENIS: 1, WPEMESANAN: 2, WPEMBAYARAN: 3, PENDAPATAN: 4, BIAYA_TOTAL: 5,
     KOMISI_PLATFORM: 6, KOMISI_DINAMIS: 7, CASHBACK: 8, AFILIASI: 9, IKLAN_AFILIASI: 10,
     PROSES_PESANAN: 11, ONGKIR_TALANGAN: 12, ONGKIR_PLATFORM: 13, ONGKIR_PEMBELI: 14,
-    ONGKIR_KEMBALI_PEMBELI: 15, ONGKIR_KEMBALI_BARANG: 16, PENYESUAIAN: 17, PENYELESAIAN: 18 };
+    ONGKIR_KEMBALI_PEMBELI: 15, ONGKIR_KEMBALI_BARANG: 16, PENYESUAIAN: 17, PENYELESAIAN: 18,
+    // Ditambahkan untuk waterfall Gross Sales -> Net Sales (lihat README "Model akuntansi").
+    // Sengaja di-append di akhir (bukan disisipkan) supaya baris mentah lama yang sudah
+    // tersimpan di GitHub sebelum fitur ini tidak kacau index-nya -- baris lama itu otomatis
+    // dapat 0/undefined di 3 field baru ini sampai user upload ulang Data Pencairan-nya.
+    GROSS_SALES: 19, SALES_DISCOUNT: 20, SALES_RETURN: 21 };
 
   function rowKey(r) {
     return [r[PROW.ID], r[PROW.JENIS], r[PROW.WPEMESANAN], r[PROW.WPEMBAYARAN], r[PROW.PENDAPATAN], r[PROW.PENYELESAIAN]].join("|");
@@ -845,7 +850,13 @@
     ONGKIR_KEMBALI_PEMBELI: ["Pengembalian ongkir yang ditanggung pembeli"],
     ONGKIR_KEMBALI_BARANG: ["Ongkir pengembalian barang (yang ditanggung pembeli)"],
     PENYESUAIAN: ["Jumlah penyesuaian"],
-    PENYELESAIAN: ["Jumlah penyelesaian pembayaran"]
+    PENYELESAIAN: ["Jumlah penyelesaian pembayaran"],
+    // Opsional (bukan kolom wajib) -- basis waterfall Gross Sales -> Net Sales, lihat README
+    // "Model akuntansi". Kalau tidak ditemukan di file (mis. dari toko/marketplace yang belum
+    // menyediakannya), toNumber("") di bawah otomatis jadi 0, tidak error.
+    GROSS_SALES: ["Subtotal sebelum diskon"],
+    SALES_DISCOUNT: ["Diskon Penjual"],
+    SALES_RETURN: ["Subtotal Pengembalian Dana Setelah Diskon Penjual"]
   };
 
   function processPencairan(rows, fileName) {
@@ -889,6 +900,9 @@
       r[PROW.ONGKIR_KEMBALI_BARANG] = toNumber(get("ONGKIR_KEMBALI_BARANG"));
       r[PROW.PENYESUAIAN] = toNumber(get("PENYESUAIAN"));
       r[PROW.PENYELESAIAN] = toNumber(get("PENYELESAIAN"));
+      r[PROW.GROSS_SALES] = toNumber(get("GROSS_SALES"));
+      r[PROW.SALES_DISCOUNT] = toNumber(get("SALES_DISCOUNT"));
+      r[PROW.SALES_RETURN] = toNumber(get("SALES_RETURN"));
 
       var key = rowKey(r);
       if (existingKeys[key]) { skipped++; continue; }
@@ -1007,6 +1021,7 @@
     function bucket(ym) {
       if (!months[ym]) months[ym] = {
         ym: ym, pendapatan: 0, biayaTotal: 0,
+        grossSales: 0, salesDiscount: 0, salesReturn: 0,
         fees: {
           komisiPlatform: 0, komisiDinamis: 0, cashback: 0, afiliasi: 0, iklanAfiliasi: 0, prosesPesanan: 0,
           ongkirTalangan: 0, ongkirPlatform: 0, ongkirPembeli: 0, ongkirKembaliPembeli: 0, ongkirKembaliBarang: 0
@@ -1032,7 +1047,9 @@
       var ym = toYearMonth(r[PROW.WPEMBAYARAN]) || toYearMonth(r[PROW.WPEMESANAN]) || "?";
       var m = bucket(ym);
       m.rows++;
-      m.pendapatan += r[PROW.PENDAPATAN];
+      m.grossSales += r[PROW.GROSS_SALES];
+      m.salesDiscount += r[PROW.SALES_DISCOUNT];
+      m.salesReturn += r[PROW.SALES_RETURN];
       m.biayaTotal += r[PROW.BIAYA_TOTAL];
       m.fees.komisiPlatform += r[PROW.KOMISI_PLATFORM];
       m.fees.komisiDinamis += r[PROW.KOMISI_DINAMIS];
@@ -1102,14 +1119,24 @@
       // Data Pesanan (otherwise we have zero SKU/qty info at all — not "0 cost", just unknown),
       // AND every matched unit has a real or estimated cost (hppUnknownQty === 0).
       var hppComplete = m.ordersMatched > 0 && hppUnknownQty === 0;
-      var labaKotor = hppComplete ? m.pendapatan - hppTotal : null;
-      var labaUsaha = labaKotor != null ? labaKotor + m.biayaTotal + m.penyesuaian : null;
+      // Waterfall Gross Sales -> Operating Profit (lihat README "Model akuntansi"). `pendapatan`
+      // sekarang BERARTI Net Sales (bukan lagi jumlah kolom "Total Pendapatan" per baris) --
+      // nama variabel dipertahankan supaya kode lain (growth tracking, trend chart, arsip bulan
+      // lama) tidak perlu diubah, cuma DEFINISINYA yang berganti.
+      // Diskon Penjual & retur di Data Pencairan SUDAH tersimpan sebagai angka negatif
+      // (deduction), bukan magnitudo positif -- diverifikasi langsung ke file asli user (lihat
+      // README "Model akuntansi"). Jadi Net Sales dijumlahkan langsung, BUKAN dikurangi lagi
+      // (mengurangi angka yang sudah negatif akan salah menambah, bukan mengurangi).
+      var netSales = m.grossSales + m.salesDiscount + m.salesReturn;
+      var labaKotor = hppComplete ? netSales - hppTotal : null; // Gross Profit
+      var labaUsaha = labaKotor != null ? labaKotor + m.biayaTotal + m.penyesuaian : null; // Operating Profit
       var totalOrdersPesanan = m.ordersMatched + m.ordersUnmatched;
       return Object.assign(m, {
+        pendapatan: netSales,
         hppTotal: hppTotal, hppTotalDisplay: hppComplete ? hppTotal : null, hppEst: hppEst, hppUnknownQty: hppUnknownQty, hppComplete: hppComplete,
         labaKotor: labaKotor, labaUsaha: labaUsaha,
-        marginKotor: (labaKotor != null && m.pendapatan) ? labaKotor / m.pendapatan : null,
-        marginUsaha: (labaUsaha != null && m.pendapatan) ? labaUsaha / m.pendapatan : null,
+        marginKotor: (labaKotor != null && netSales) ? labaKotor / netSales : null,
+        marginUsaha: (labaUsaha != null && netSales) ? labaUsaha / netSales : null,
         matchRate: totalOrdersPesanan ? m.ordersMatched / totalOrdersPesanan : 0,
         qtyTotal: m.qtyFound + m.hppEstQty,
         qtyCoverage: (m.qtyFound + m.hppEstQty) ? m.qtyFound / (m.qtyFound + m.hppEstQty) : 0
@@ -1208,6 +1235,7 @@
 
   /* ================= Render ================= */
   var expandedMonth = null;
+  var accountingHelpOpen = false;
 
   function render() {
     renderStoreTabs();
@@ -1283,14 +1311,19 @@
     var host = document.getElementById("dashboard");
     var months = computeMonthly();
     if (!months.length) {
-      host.innerHTML = '<div class="card empty"><div class="big">Belum ada data</div>Unggah Data Pencairan bulan pertama untuk mulai melihat ringkasan Omzet, HPP, dan Laba Usaha di sini.</div>';
+      host.innerHTML = '<div class="card empty"><div class="big">Belum ada data</div>Unggah Data Pencairan bulan pertama untuk mulai melihat ringkasan Net Sales, COGS, dan Operating Profit di sini.</div>';
       return;
     }
     var html = "";
-    html += '<section><div class="section-head"><h2>Tren bulanan</h2><span class="hint">Omzet, HPP, Laba Usaha</span></div>';
+    html += '<section><div class="section-head"><h2>Tren bulanan</h2><span class="hint">Net Sales, COGS, Operating Profit</span></div>';
     html += '<div class="card chart-card">' + trendChart(months) + "</div></section>";
 
-    html += '<section><div class="section-head"><h2>Rincian per bulan</h2><span class="hint">Klik satu baris untuk lihat detail biaya</span></div>';
+    html += '<section><div class="section-head"><h2>Rincian per bulan</h2><div style="display:flex;align-items:center;gap:10px;">' +
+      '<span class="hint">Klik satu baris untuk lihat detail biaya</span>' +
+      '<button class="icon-btn" id="accounting-help-toggle" type="button" title="Penjelasan istilah akuntansi" aria-label="Penjelasan istilah akuntansi">' +
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>' +
+      "</button></div></div>";
+    html += '<div class="card" id="accounting-help-card" style="padding:16px 20px;' + (accountingHelpOpen ? "" : "display:none;") + '">' + accountingHelpContent() + "</div>";
     html += '<div class="card table-scroll">' + monthTable(months) + "</div></section>";
 
     html += missingSkusPanel();
@@ -1298,6 +1331,36 @@
     host.innerHTML = html;
     attachRowHandlers(months);
     attachMissingSkuHandlers();
+    document.getElementById("accounting-help-toggle").addEventListener("click", function () {
+      accountingHelpOpen = !accountingHelpOpen;
+      renderDashboard();
+    });
+  }
+
+  // Glosarium istilah akuntansi yang dipakai di "Ringkasan P&L" (lihat monthDetail()) --
+  // dipicu dari tombol "?" di section-head "Rincian per bulan". Urutan mengikuti waterfall
+  // Gross Sales -> Operating Profit; Settlement dijelaskan terpisah karena bukan bagian
+  // waterfall (angka riil dari platform, dipakai buat cross-check saja).
+  function accountingHelpContent() {
+    var sectionTitle = "font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;";
+    var terms = [
+      ["Gross Sales", "Total nilai jual barang SEBELUM dikurangi diskon apa pun. Diambil langsung dari kolom “Subtotal sebelum diskon” di Data Pencairan, dijumlahkan per bulan (basis Waktu Pembayaran)."],
+      ["Sales Discounts", "Diskon yang ditanggung/didanai oleh kamu sebagai penjual (bukan diskon yang disubsidi platform). Diambil dari kolom “Diskon Penjual”. Selalu jadi pengurang."],
+      ["Sales Returns", "Uang yang dikembalikan ke pembeli akibat retur/refund, dihitung SETELAH diskon penjual (supaya tidak dobel-hitung dengan Sales Discounts). Diambil dari kolom “Subtotal Pengembalian Dana Setelah Diskon Penjual”. Selalu jadi pengurang."],
+      ["Net Sales", "= Gross Sales &minus; Sales Discounts &minus; Sales Returns. Ini angka “omzet” utama yang dipakai di seluruh app (grafik tren, growth %, dsb) &mdash; menggantikan kolom “Total Pendapatan” yang dulu dipakai."],
+      ["COGS (Cost of Goods Sold)", "Harga modal (HPP) dari semua unit yang benar-benar terjual (qty net setelah retur) bulan ini, dicari dari Data Pesanan + Harga Modal SKU. Kalau ada SKU yang belum punya harga modal, COGS ditampilkan “&mdash;” sampai dilengkapi (tidak pernah ditampilkan sebagai Rp 0 yang menyesatkan)."],
+      ["Gross Profit", "= Net Sales &minus; COGS. Untung kotor dari jualan barangnya saja, belum dipotong biaya platform."],
+      ["Platform Fee", "Semua potongan dari marketplace: komisi platform, komisi dinamis/iklan, biaya cashback, biaya pemrosesan pesanan, dan semua komponen ongkir. Rinciannya ada di panel “Rincian Biaya Platform” di bawah Ringkasan P&amp;L ini."],
+      ["Adjustments", "Koreksi dari platform di luar Platform Fee &mdash; misalnya penggantian biaya logistik atau penggantian dana oleh platform (kompensasi). Bisa menambah atau mengurangi, tergantung jenis transaksinya."],
+      ["Operating Profit", "= Gross Profit &minus; Platform Fee + Adjustments. Angka paling bawah &mdash; untung bersih dari jualan di marketplace bulan ini, belum termasuk biaya di luar marketplace (gaji, sewa, dsb)."]
+    ];
+    var termsHtml = terms.map(function (t) {
+      return "<div style=\"margin-bottom:12px;\"><div style=\"font-weight:700;margin-bottom:2px;\">" + t[0] + "</div><div style=\"color:var(--ink-muted);line-height:1.5;\">" + t[1] + "</div></div>";
+    }).join("");
+    return '<h3 style="' + sectionTitle + '">Penjelasan istilah akuntansi</h3>' +
+      '<div class="note" style="margin-bottom:14px;">Urutan hitungnya (waterfall): <b>Gross Sales</b> &rarr; kurangi <b>Sales Discounts</b> &amp; <b>Sales Returns</b> &rarr; <b>Net Sales</b> &rarr; kurangi <b>COGS</b> &rarr; <b>Gross Profit</b> &rarr; kurangi <b>Platform Fee</b>, +/&minus; <b>Adjustments</b> &rarr; <b>Operating Profit</b>.</div>' +
+      termsHtml +
+      "<div style=\"margin-top:4px;\"><div style=\"font-weight:700;margin-bottom:2px;\">Settlement Amount</div><div style=\"color:var(--ink-muted);line-height:1.5;\">Bukan bagian dari waterfall di atas &mdash; ini angka riil “Jumlah Penyelesaian Pembayaran” yang dilaporkan langsung oleh platform (uang yang benar-benar dicairkan). Dipakai sebagai <b>cross-check</b>: kalau beda jauh dari hasil hitungan Net Sales &minus; Platform Fee + Adjustments, itu sinyal ada baris/kolom yang perlu dicek ulang.</div></div>";
   }
 
   function missingSkusPanel() {
@@ -1365,9 +1428,9 @@
     var w = 1080, h = 220, padL = 60, padR = 16, padT = 16, padB = 28;
     var innerW = w - padL - padR, innerH = h - padT - padB;
     var series = [
-      { key: "pendapatan", color: "var(--ink-faint)", label: "Omzet" },
-      { key: "hppTotalDisplay", color: "var(--warn)", label: "HPP" },
-      { key: "labaUsaha", color: "var(--accent)", label: "Laba Usaha" }
+      { key: "pendapatan", color: "var(--ink-faint)", label: "Net Sales" },
+      { key: "hppTotalDisplay", color: "var(--warn)", label: "COGS" },
+      { key: "labaUsaha", color: "var(--accent)", label: "Operating Profit" }
     ];
     var allVals = [];
     months.forEach(function (m) { series.forEach(function (s) { if (m[s.key] != null) allVals.push(m[s.key]); }); });
@@ -1446,7 +1509,7 @@
       return main + detail;
     }).join("");
     return '<table class="months"><thead><tr>' +
-      "<th>Bulan</th><th>Omzet</th><th>Δ Omzet</th><th>HPP</th><th>Laba Kotor</th><th>Biaya Platform</th><th>Laba Usaha</th><th>Δ Laba Usaha</th><th>Margin</th><th>Kualitas Data</th>" +
+      "<th>Bulan</th><th>Net Sales</th><th>Δ Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Platform Fee</th><th>Operating Profit</th><th>Δ Operating Profit</th><th>Margin</th><th>Kualitas Data</th>" +
       "</tr></thead><tbody>" + rows + "</tbody></table>";
   }
 
@@ -1472,7 +1535,7 @@
     if (Math.round(lainLain) !== 0) feeItems.push(["Biaya lain-lain (belum dirinci)", lainLain]);
     var feeHtml = feeItems.map(function (it) {
       return "<li><span>" + it[0] + '</span><span class="amt">' + rp(it[1]) + "</span></li>";
-    }).join("") + '<li class="total"><span>Total Biaya Platform</span><span class="amt">' + rp(m.biayaTotal) + "</span></li>";
+    }).join("") + '<li class="total"><span>Total Platform Fee</span><span class="amt">' + rp(m.biayaTotal) + "</span></li>";
 
     var tx = m.txCounts;
     var txItems = [
@@ -1495,17 +1558,43 @@
       : "";
     var noteEst = !m.hppComplete
       ? (m.ordersMatched === 0
-        ? '<div class="note"><b>Belum ada order di bulan ini yang ketemu di Data Pesanan</b> &mdash; SKU dan Quantity-nya belum diketahui sama sekali, jadi HPP, Laba Kotor, dan Laba Usaha bulan ini belum bisa dihitung. Upload Data Pesanan untuk periode ini untuk melengkapi.</div>'
-        : '<div class="note"><b>Harga Modal SKU belum diupload</b> (atau SKU pada order yang cocok belum ada di daftarnya) &mdash; HPP, Laba Kotor, dan Laba Usaha bulan ini belum bisa dihitung sama sekali. Upload file Harga Modal SKU untuk melengkapi.</div>')
+        ? '<div class="note"><b>Belum ada order di bulan ini yang ketemu di Data Pesanan</b> &mdash; SKU dan Quantity-nya belum diketahui sama sekali, jadi COGS, Gross Profit, dan Operating Profit bulan ini belum bisa dihitung. Upload Data Pesanan untuk periode ini untuk melengkapi.</div>'
+        : '<div class="note"><b>Harga Modal SKU belum diupload</b> (atau SKU pada order yang cocok belum ada di daftarnya) &mdash; COGS, Gross Profit, dan Operating Profit bulan ini belum bisa dihitung sama sekali. Upload file Harga Modal SKU untuk melengkapi.</div>')
       : (m.hppEstQty > 0
         ? '<div class="note">' + Math.round(m.hppEstQty).toLocaleString("id-ID") + " unit (" + rp(m.hppEst) + ") dari order yang cocok masih pakai <b>estimasi rata-rata harga modal</b> (SKU-nya belum ada di daftar Harga Modal).</div>"
         : "");
 
+    // Waterfall Gross Sales -> Operating Profit (lihat README "Model akuntansi" untuk definisi
+    // & sumber kolom tiap baris). Baris subtotal (Net Sales/Gross Profit/Operating Profit) dikasih
+    // class "total" (bold + garis atas, sama seperti "Total Biaya Platform" di rincian biaya).
+    var waterfallHtml =
+      "<li><span>Gross Sales</span><span class=\"amt\">" + (m.grossSales == null ? "—" : rp(m.grossSales)) + "</span></li>" +
+      "<li><span>Sales Discounts</span><span class=\"amt\">" + (m.salesDiscount == null ? "—" : rp(m.salesDiscount)) + "</span></li>" +
+      "<li><span>Sales Returns</span><span class=\"amt\">" + (m.salesReturn == null ? "—" : rp(m.salesReturn)) + "</span></li>" +
+      "<li class=\"total\"><span>Net Sales</span><span class=\"amt\">" + rp(m.pendapatan) + "</span></li>" +
+      "<li><span>COGS</span><span class=\"amt\">" + (m.hppComplete ? rp(-m.hppTotal) : "—") + "</span></li>" +
+      "<li class=\"total\"><span>Gross Profit</span><span class=\"amt\">" + rpOrDash(m.labaKotor) + "</span></li>" +
+      "<li><span>Platform Fee</span><span class=\"amt\">" + rp(m.biayaTotal) + "</span></li>" +
+      "<li><span>Adjustments</span><span class=\"amt\">" + rp(m.penyesuaian) + "</span></li>" +
+      "<li class=\"total\"><span>Operating Profit</span><span class=\"amt\">" + rpOrDash(m.labaUsaha) + "</span></li>";
+    // Settlement Amount = angka riil yang dilaporkan platform (kolom "Jumlah Penyelesaian
+    // Pembayaran"), BUKAN hasil hitungan waterfall di atas -- dipakai sebagai cross-check.
+    // Beda wajar terjadi karena saldo/dompet tertahan, item non-produk, dsb.
+    var calcSettlement = m.labaUsaha != null ? m.pendapatan + m.biayaTotal + m.penyesuaian : null;
+    var settlementDiff = calcSettlement != null ? m.penyelesaian - calcSettlement : null;
+    var settlementNote = '<div class="note">Settlement Amount (dilaporkan platform): <b>' + rp(m.penyelesaian) + "</b>" +
+      (settlementDiff == null ? " &mdash; belum bisa dibandingkan (Operating Profit belum lengkap)."
+        : Math.round(settlementDiff) === 0 ? " &mdash; cocok dengan hasil hitungan Net Sales &minus; Platform Fee + Adjustments."
+        : " &mdash; selisih " + rp(settlementDiff) + " dari hasil hitungan Net Sales &minus; Platform Fee + Adjustments (bisa karena saldo/dompet tertahan atau item non-produk).") +
+      "</div>";
+
     var sectionTitle = "font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;";
     return '<div class="detail-grid">' +
+      '<div style="grid-column:1/-1;"><h3 style="' + sectionTitle + '">Ringkasan P&amp;L</h3>' +
+      '<ul class="fee-list">' + waterfallHtml + "</ul>" + settlementNote +
+      "</div>" +
       '<div><h3 style="' + sectionTitle + '">Rincian Biaya Platform</h3>' +
       '<ul class="fee-list">' + feeHtml + "</ul>" +
-      "<div class=\"note\">Penyesuaian dari platform: <b>" + rp(m.penyesuaian) + "</b> &middot; Jumlah Penyelesaian Pembayaran resmi: <b>" + rp(m.penyelesaian) + "</b></div>" +
       "</div>" +
       '<div><h3 style="' + sectionTitle + '">Rincian Jenis Transaksi</h3>' +
       '<ul class="fee-list">' + txHtml + "</ul>" +
