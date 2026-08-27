@@ -1,0 +1,1788 @@
+<title>Lapangan Ledger</title>
+<style>
+  :root {
+    --bg: #f4f6f2;
+    --surface: #ffffff;
+    --surface-raised: #ffffff;
+    --ink: #182019;
+    --ink-muted: #55645a;
+    --ink-faint: #8b988e;
+    --line: #dde3d9;
+    --line-strong: #c2ccc0;
+    --accent: #1f6e4a;
+    --accent-ink: #ffffff;
+    --accent-soft: #e4efe6;
+    --accent-soft-line: #c7ddcd;
+    --warn: #9a5b13;
+    --warn-soft: #f7ecd9;
+    --danger: #a3352b;
+    --danger-soft: #f8e4e1;
+    --good: #1f6e4a;
+    --shadow: 0 1px 2px rgba(24, 32, 25, 0.06), 0 4px 12px rgba(24, 32, 25, 0.05);
+    --radius: 10px;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
+    --display: "Archivo", "Arial Narrow", sans-serif;
+    --body: "Source Sans 3", "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10140f;
+      --surface: #171d17;
+      --surface-raised: #1c231b;
+      --ink: #e8ede5;
+      --ink-muted: #a3b0a0;
+      --ink-faint: #6c7a6a;
+      --line: #2b342a;
+      --line-strong: #3a4538;
+      --accent: #57b384;
+      --accent-ink: #0b1a10;
+      --accent-soft: #1c2c22;
+      --accent-soft-line: #2d4636;
+      --warn: #d9a552;
+      --warn-soft: #2e2617;
+      --danger: #e08379;
+      --danger-soft: #331d1a;
+      --good: #57b384;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10140f;
+    --surface: #171d17;
+    --surface-raised: #1c231b;
+    --ink: #e8ede5;
+    --ink-muted: #a3b0a0;
+    --ink-faint: #6c7a6a;
+    --line: #2b342a;
+    --line-strong: #3a4538;
+    --accent: #57b384;
+    --accent-ink: #0b1a10;
+    --accent-soft: #1c2c22;
+    --accent-soft-line: #2d4636;
+    --warn: #d9a552;
+    --warn-soft: #2e2617;
+    --danger: #e08379;
+    --danger-soft: #331d1a;
+    --good: #57b384;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+  button { font-family: var(--body); }
+  ::selection { background: var(--accent-soft); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .shell { max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  header.top {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 16px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line);
+  }
+  header.top .brand { display: flex; align-items: baseline; gap: 10px; }
+  header.top .mark {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink);
+    font-family: var(--display); font-weight: 700; font-size: 13px;
+    flex: none;
+  }
+  header.top h1 { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
+  header.top .tagline { color: var(--ink-faint); font-size: 12.5px; letter-spacing: 0.02em; }
+  header.top .actions { display: flex; gap: 8px; }
+
+  .btn {
+    appearance: none; border: 1px solid var(--line-strong); background: var(--surface);
+    color: var(--ink); padding: 8px 14px; border-radius: 8px; font-size: 13.5px;
+    cursor: pointer; font-weight: 600; transition: border-color .15s, background .15s;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn.ghost { border-color: transparent; background: transparent; }
+  .btn.small { padding: 5px 10px; font-size: 12px; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  section { margin-bottom: 28px; }
+  .section-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    margin-bottom: 12px;
+  }
+  .section-head h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); }
+  .section-head .hint { font-size: 12.5px; color: var(--ink-faint); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  /* ---- Upload panel ---- */
+  .upload-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 880px) { .upload-grid { grid-template-columns: 1fr; } }
+  .dropzone {
+    padding: 18px; display: flex; flex-direction: column; gap: 6px; position: relative;
+    border-style: dashed; border-color: var(--line-strong);
+  }
+  .dropzone.drag-over { border-color: var(--accent); background: var(--accent-soft); }
+  .dropzone .dz-icon {
+    width: 34px; height: 34px; border-radius: 8px; background: var(--accent-soft);
+    color: var(--accent); display: flex; align-items: center; justify-content: center;
+    font-family: var(--display); font-weight: 700; font-size: 14px; margin-bottom: 4px;
+  }
+  .dropzone h3 { font-size: 14.5px; }
+  .dropzone p { margin: 0; font-size: 12.5px; color: var(--ink-faint); line-height: 1.45; }
+  .dropzone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .dropzone .status-line { font-size: 12px; margin-top: 4px; font-weight: 600; }
+  .dropzone .status-line.ok { color: var(--good); }
+  .dropzone .status-line.warn { color: var(--warn); }
+
+  .log {
+    margin-top: 14px; font-size: 12.5px; color: var(--ink-muted);
+    max-height: 130px; overflow-y: auto; border-top: 1px solid var(--line); padding-top: 10px;
+  }
+  .log-row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; }
+  .log-row .t { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; flex: none; }
+
+  /* ---- KPI cards ---- */
+  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  @media (max-width: 980px) { .kpi-row { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 560px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+  .kpi .label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
+  .kpi .value { font-family: var(--mono); font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi .value.neg { color: var(--danger); }
+  .kpi .value.pos { color: var(--good); }
+  .kpi .sub { font-size: 11.5px; color: var(--ink-muted); }
+  .growth { white-space: nowrap; }
+  .growth.pos { color: var(--good); }
+  .growth.neg { color: var(--danger); }
+  .growth-cell { font-size: 12px; color: var(--ink-faint); white-space: nowrap; }
+  .growth-cell.pos { color: var(--good); }
+  .growth-cell.neg { color: var(--danger); }
+
+  /* ---- Trend chart ---- */
+  .chart-card { padding: 18px 20px 8px; }
+  .chart-legend { display: flex; gap: 16px; font-size: 12px; color: var(--ink-muted); margin-bottom: 4px; }
+  .chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .chart-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+  /* ---- Month table ---- */
+  table.months { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.months th {
+    text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-faint); font-weight: 600; padding: 9px 12px; border-bottom: 1px solid var(--line-strong);
+  }
+  table.months th:first-child, table.months td:first-child { text-align: left; }
+  table.months td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  table.months tbody tr { cursor: pointer; }
+  table.months tbody tr:hover { background: var(--accent-soft); }
+  table.months tbody tr.expanded { background: var(--accent-soft); }
+  .month-name { font-family: var(--body); font-weight: 600; text-align: left; }
+  .table-scroll { overflow-x: auto; }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+    font-family: var(--body);
+  }
+  .pill.good { background: var(--accent-soft); color: var(--accent); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--danger-soft); color: var(--danger); }
+
+  .detail-row td { background: var(--surface); cursor: default; padding: 0; }
+  .detail-row:hover { background: var(--surface); }
+  .detail-wrap { padding: 18px 20px 22px; text-align: left; font-family: var(--body); }
+  .detail-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; }
+  @media (max-width: 760px) { .detail-grid { grid-template-columns: 1fr; } }
+  .fee-list { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
+  .fee-list li { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dotted var(--line); }
+  .fee-list li .amt { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .fee-list li.total { border-bottom: none; border-top: 1px solid var(--line-strong); margin-top: 4px; padding-top: 8px; font-weight: 600; }
+  .fee-list .ink-faint { color: var(--ink-faint); font-weight: 400; }
+  .quality-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+  .quality-box { padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  .quality-box .n { font-family: var(--mono); font-size: 17px; font-weight: 600; }
+  .quality-box .l { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+  .bar { height: 6px; border-radius: 4px; background: var(--line); overflow: hidden; margin-top: 6px; }
+  .bar > span { display: block; height: 100%; background: var(--accent); }
+
+  .empty {
+    padding: 50px 20px; text-align: center; color: var(--ink-faint); font-size: 14px;
+  }
+  .empty .big { font-family: var(--display); font-size: 17px; color: var(--ink-muted); margin-bottom: 6px; }
+
+  .note {
+    font-size: 12.5px; color: var(--ink-muted); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; margin-top: 10px; line-height: 1.5;
+  }
+  .note b { color: var(--ink); }
+
+  .missing-sku-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  .missing-sku-list li {
+    display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px dotted var(--line);
+  }
+  .missing-sku-list li:last-child { border-bottom: none; }
+  .missing-sku-list .info { flex: 1; min-width: 0; }
+  .missing-sku-list .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .missing-sku-list .meta { font-size: 11.5px; color: var(--ink-faint); font-family: var(--mono); }
+  .missing-sku-list .fill { display: flex; align-items: center; gap: 6px; flex: none; }
+  .missing-sku-list input[type=number] {
+    width: 108px; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 6px;
+    background: var(--surface); color: var(--ink); font-family: var(--mono); font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .missing-sku-list input[type=number]:focus { outline: none; border-color: var(--accent); }
+  .missing-sku-list .saved { font-size: 11.5px; color: var(--accent); font-weight: 600; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-muted); margin-bottom: 5px; }
+  .field input[type=text], .field input[type=password] {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 6px;
+    background: var(--surface); color: var(--ink); font-family: var(--mono); font-size: 13px;
+  }
+  .field input[type=text]:focus, .field input[type=password]:focus { outline: none; border-color: var(--accent); }
+
+  .help-toggle { font-size: 12.5px; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; background: none; border: none; padding: 0; font-family: var(--body); }
+  .help-body { margin-top: 10px; font-size: 12.5px; color: var(--ink-muted); display: none; }
+  .help-body.open { display: block; }
+  .help-body code { background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 11.5px; color: var(--ink); }
+  .help-body ul { margin: 6px 0; padding-left: 18px; }
+
+  footer.foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(0);
+    background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 8px; font-size: 13px;
+    box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+    z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<div class="shell">
+  <header class="top">
+    <div class="brand">
+      <span class="mark">LL</span>
+      <div>
+        <h1>Lapangan Ledger</h1>
+        <div class="tagline">Omzet &middot; HPP &middot; Biaya Platform &middot; Laba Usaha &mdash; Tokopedia + TikTok Shop</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btn-export">Unduh cadangan</button>
+      <button class="btn ghost" id="btn-import">Unggah cadangan</button>
+      <input type="file" id="file-import" accept=".json" style="display:none" />
+      <button class="btn ghost" id="btn-reset">Reset data</button>
+      <button class="btn ghost" id="btn-storage-settings">Pengaturan Penyimpanan</button>
+    </div>
+  </header>
+
+  <div id="setup-screen" style="display:none;"></div>
+
+  <section id="upload-section">
+    <div class="section-head">
+      <h2>Unggah data bulanan</h2>
+      <span class="hint">Format CSV atau XLSX &middot; data digabung otomatis ke riwayat</span>
+    </div>
+    <div class="card upload-grid">
+      <div class="dropzone" id="dz-pencairan">
+        <input type="file" id="file-pencairan" accept=".csv,.xlsx" multiple />
+        <span class="dz-icon">Rp</span>
+        <h3>Data Pencairan</h3>
+        <p>Export "Income" dari Seller Center. Sumber Omzet &amp; Biaya Platform bulanan.</p>
+        <div class="status-line" id="status-pencairan"></div>
+      </div>
+      <div class="dropzone" id="dz-pesanan">
+        <input type="file" id="file-pesanan" accept=".csv,.xlsx" multiple />
+        <span class="dz-icon">#</span>
+        <h3>Data Pesanan</h3>
+        <p>Export daftar pesanan (Order ID, SKU ID, Qty). Dipakai untuk mencari HPP tiap order.</p>
+        <div class="status-line" id="status-pesanan"></div>
+      </div>
+      <div class="dropzone" id="dz-modal">
+        <input type="file" id="file-modal" accept=".csv,.xlsx" />
+        <span class="dz-icon">M</span>
+        <h3>Harga Modal SKU</h3>
+        <p>Daftar ID SKU + harga modal per unit. Update kapan saja saat modal berubah.</p>
+        <div class="status-line" id="status-modal"></div>
+      </div>
+    </div>
+    <div class="card" style="padding: 14px 18px;">
+      <button class="help-toggle" id="help-toggle">Kolom apa saja yang dibutuhkan tiap file?</button>
+      <div class="help-body" id="help-body">
+        <p><b>Data Pencairan</b> (CSV dari sheet "Detail pesanan" pada laporan income) &mdash; wajib ada kolom:
+          <code>ID Pesanan/Penyesuaian</code>, <code>Jenis transaksi</code>, <code>Waktu pembayaran pesanan</code>,
+          <code>Total Pendapatan</code>, <code>Total Biaya</code>, <code>Jumlah penyelesaian pembayaran</code>,
+          <code>Jumlah penyesuaian</code>, dan kolom rincian biaya (Biaya komisi platform, Komisi dinamis, Biaya layanan cashback bonus,
+          Komisi Afiliasi, Komisi Iklan Toko afiliasi, Biaya pemrosesan pesanan, kolom-kolom Ongkir). Kolom lain akan diabaikan, tidak masalah kalau ikut terbawa.</p>
+        <p><b>Data Pesanan</b> (CSV dari daftar pesanan) &mdash; wajib ada kolom: <code>Order ID</code>, <code>SKU ID</code>, <code>Quantity</code>, <code>Product Name</code>.
+          Upload data pesanan untuk periode order dibuat yang cukup jauh ke belakang (2&ndash;3 bulan sebelum bulan pencairan pertama) supaya order lama yang baru cair tetap ketemu SKU-nya.</p>
+        <p><b>Harga Modal SKU</b> &mdash; cukup 2 kolom: <code>ID SKU</code> dan <code>Harga Modal</code>. Boleh diupload ulang kapan saja untuk update harga.</p>
+        <p>File boleh format <b>.csv</b> atau <b>.xlsx</b> langsung, tidak perlu convert manual.</p>
+      </div>
+    </div>
+    <div class="log" id="upload-log"></div>
+  </section>
+
+  <div id="dashboard"></div>
+
+  <footer class="foot">
+    <span>Data disimpan di repo GitHub privat kamu sendiri (lihat Pengaturan Penyimpanan).</span>
+    <span id="footer-stats"></span>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ================= State ================= */
+  var DEFAULT_STATE = {
+    orderMaster: {},      // orderId -> [[sku, qty], ...]
+    skuNames: {},         // sku -> product name
+    skuCost: {},          // sku -> harga modal
+    pencairanRows: [],    // deduped rows, compact arrays (see PROW_* indices)
+    uploads: [],          // {t, label, fileName, rows}
+    monthlyArchive: []    // [{ym, archived:true, ...semua field hasil computeMonthly()}] -- lihat archiveMonth()
+  };
+  var state = null;
+
+  function freshDefaultState() {
+    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }
+
+  /* Data Pencairan compact row layout */
+  var PROW = { ID: 0, JENIS: 1, WPEMESANAN: 2, WPEMBAYARAN: 3, PENDAPATAN: 4, BIAYA_TOTAL: 5,
+    KOMISI_PLATFORM: 6, KOMISI_DINAMIS: 7, CASHBACK: 8, AFILIASI: 9, IKLAN_AFILIASI: 10,
+    PROSES_PESANAN: 11, ONGKIR_TALANGAN: 12, ONGKIR_PLATFORM: 13, ONGKIR_PEMBELI: 14,
+    ONGKIR_KEMBALI_PEMBELI: 15, ONGKIR_KEMBALI_BARANG: 16, PENYESUAIAN: 17, PENYELESAIAN: 18 };
+
+  function rowKey(r) {
+    return [r[PROW.ID], r[PROW.JENIS], r[PROW.WPEMESANAN], r[PROW.WPEMBAYARAN], r[PROW.PENDAPATAN], r[PROW.PENYELESAIAN]].join("|");
+  }
+
+  /* ================= CSV parsing ================= */
+  function detectDelimiter(text) {
+    var firstLine = text.split(/\r\n|\n/, 1)[0] || "";
+    var commas = (firstLine.match(/,/g) || []).length;
+    var semis = (firstLine.match(/;/g) || []).length;
+    return semis > commas ? ";" : ",";
+  }
+
+  function parseCSV(text) {
+    text = text.replace(/^﻿/, "");
+    var delim = detectDelimiter(text);
+    var rows = [];
+    var row = [];
+    var field = "";
+    var inQuotes = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else { inQuotes = false; }
+        } else field += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === delim) { row.push(field); field = ""; }
+        else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+        else if (c === "\r") { /* skip */ }
+        else field += c;
+      }
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row); }
+    while (rows.length && rows[rows.length - 1].every(function (v) { return v === ""; })) rows.pop();
+    return rows;
+  }
+
+  function normHeader(h) { return (h || "").replace(/^﻿/, "").trim(); }
+
+  function findCol(headers, candidates) {
+    for (var c = 0; c < candidates.length; c++) {
+      for (var i = 0; i < headers.length; i++) {
+        if (normHeader(headers[i]).toLowerCase() === candidates[c].toLowerCase()) return i;
+      }
+    }
+    return -1;
+  }
+
+  function toNumber(v) {
+    if (v == null) return 0;
+    var s = String(v).trim();
+    if (s === "" || s === "-") return 0;
+    var neg = false;
+    if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+    s = s.replace(/[^0-9.,\-]/g, "");
+    if (s.indexOf(",") > -1 && s.indexOf(".") > -1) {
+      if (s.lastIndexOf(",") > s.lastIndexOf(".")) s = s.replace(/\./g, "").replace(",", ".");
+      else s = s.replace(/,/g, "");
+    } else if (s.indexOf(",") > -1) {
+      var parts = s.split(",");
+      if (parts[parts.length - 1].length === 2) s = s.replace(",", ".");
+      else s = s.replace(/,/g, "");
+    } else if (s.indexOf(".") > -1) {
+      // Only dots, no comma. Could be a real decimal point ("106.2") OR an
+      // Indonesian thousands separator ("106.216" meaning Rp 106.216 = 106216).
+      var dotParts = s.split(".");
+      if (dotParts.length > 2) {
+        // more than one dot ("1.234.567") is always thousands grouping
+        s = s.replace(/\./g, "");
+      } else if (dotParts[dotParts.length - 1].length === 3) {
+        // single dot followed by exactly 3 digits -> thousands separator
+        s = s.replace(/\./g, "");
+      }
+      // otherwise (1 or 2 digits after the dot) treat it as a real decimal point
+    }
+    var n = parseFloat(s);
+    if (isNaN(n)) return 0;
+    return neg ? -n : n;
+  }
+
+  function toYearMonth(dateStr) {
+    if (!dateStr) return null;
+    var s = String(dateStr).trim();
+    var m = s.match(/(\d{4})[\/\-](\d{1,2})/);
+    if (m) return m[1] + "-" + m[2].padStart(2, "0");
+    m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (m) return m[3] + "-" + m[2].padStart(2, "0");
+    return null;
+  }
+
+  /* ================= XLSX parsing (vanilla, no deps) =================
+     An .xlsx file is a ZIP archive of XML parts. No external library: unzip using the
+     browser's native DecompressionStream("deflate-raw"), and read the XML with small
+     regex-based extractors tailored to the narrow, machine-generated XML shapes that
+     Excel/Google Sheets produce -- not a general-purpose XML parser. Output shape matches
+     parseCSV()'s exactly (array of arrays of cell values) so all downstream code
+     (findCol, processPencairan/processPesanan/processModal) is unaware of which format
+     the data came from. */
+
+  function xmlUnescape(s) {
+    return s.replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|quot|apos);/g, function (whole, e) {
+      if (e === "amp") return "&";
+      if (e === "lt") return "<";
+      if (e === "gt") return ">";
+      if (e === "quot") return "\"";
+      if (e === "apos") return "'";
+      var code = (e[1] === "x" || e[1] === "X") ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      return isNaN(code) ? whole : String.fromCodePoint(code);
+    });
+  }
+
+  function getXmlAttr(attrsStr, name) {
+    var m = attrsStr.match(new RegExp(name + '="([^"]*)"'));
+    return m ? m[1] : null;
+  }
+
+  // --- ZIP reader: just enough to locate and inflate named parts by filename ---
+  function readZipEntries(buf) {
+    var view = new DataView(buf);
+    var eocdSig = 0x06054b50;
+    var maxBack = Math.min(buf.byteLength, 22 + 65536); // EOCD comment can be up to 64KB
+    var eocdOffset = -1;
+    for (var i = buf.byteLength - 22; i >= buf.byteLength - maxBack && i >= 0; i--) {
+      if (view.getUint32(i, true) === eocdSig) { eocdOffset = i; break; }
+    }
+    if (eocdOffset === -1) throw new Error("Bukan file .xlsx yang valid (struktur ZIP tidak ditemukan).");
+    var cdOffset = view.getUint32(eocdOffset + 16, true);
+    var cdCount = view.getUint16(eocdOffset + 10, true);
+    var entries = {};
+    var p = cdOffset;
+    for (var n = 0; n < cdCount; n++) {
+      if (view.getUint32(p, true) !== 0x02014b50) throw new Error("Struktur ZIP dalam file .xlsx tidak dikenali.");
+      var method = view.getUint16(p + 10, true);
+      var compSize = view.getUint32(p + 20, true);
+      var nameLen = view.getUint16(p + 28, true);
+      var extraLen = view.getUint16(p + 30, true);
+      var commentLen = view.getUint16(p + 32, true);
+      var localHeaderOffset = view.getUint32(p + 42, true);
+      var name = new TextDecoder("utf-8").decode(new Uint8Array(buf, p + 46, nameLen));
+      entries[name] = { method: method, compSize: compSize, localHeaderOffset: localHeaderOffset };
+      p += 46 + nameLen + extraLen + commentLen;
+    }
+    return entries;
+  }
+
+  async function inflateIfNeeded(bytes, method) {
+    if (method === 0) return bytes; // stored, no compression
+    if (method !== 8) throw new Error("Metode kompresi ZIP (kode " + method + ") tidak didukung.");
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("Browser ini tidak mendukung dekompresi .xlsx bawaan (DecompressionStream). Pakai browser modern, atau upload versi CSV-nya.");
+    }
+    var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+
+  async function readZipEntryText(buf, entries, name) {
+    var e = entries[name];
+    if (!e) return null;
+    var view = new DataView(buf);
+    var lp = e.localHeaderOffset;
+    if (view.getUint32(lp, true) !== 0x04034b50) throw new Error("Header lokal ZIP tidak valid (" + name + ").");
+    var nameLen = view.getUint16(lp + 26, true);
+    var extraLen = view.getUint16(lp + 28, true);
+    var dataStart = lp + 30 + nameLen + extraLen;
+    var compBytes = new Uint8Array(buf, dataStart, e.compSize);
+    var raw = await inflateIfNeeded(compBytes, e.method);
+    return new TextDecoder("utf-8").decode(raw);
+  }
+
+  // --- sharedStrings.xml: <si><t>text</t></si> (or rich-text runs <si><r><t>...</t></r>...) ---
+  function parseSharedStringsXml(xml) {
+    if (!xml) return [];
+    var strings = [];
+    var siRe = /<si(?:\s[^>]*)?\/>|<si(?:\s[^>]*)?>([\s\S]*?)<\/si>/g;
+    var m;
+    while ((m = siRe.exec(xml))) {
+      var inner = m[1] || "";
+      var text = "";
+      var tRe = /<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g;
+      var tm;
+      while ((tm = tRe.exec(inner))) text += xmlUnescape(tm[1]);
+      strings.push(text);
+    }
+    return strings;
+  }
+
+  // Built-in Excel numFmtIds that represent a date/time (per ECMA-376).
+  var BUILTIN_DATE_FMT_IDS = {};
+  [14, 15, 16, 17, 18, 19, 20, 21, 22, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57, 58]
+    .forEach(function (id) { BUILTIN_DATE_FMT_IDS[id] = true; });
+
+  function looksLikeDateFormatCode(code) {
+    var stripped = code.replace(/"[^"]*"/g, "").replace(/\[[^\]]*\]/g, "");
+    return /[ymdhs]/i.test(stripped);
+  }
+
+  // styles.xml: <numFmts><numFmt numFmtId=".." formatCode=".."/></numFmts> (custom formats)
+  // + <cellXfs><xf numFmtId=".."/></cellXfs> (style index -> numFmtId, in document order).
+  // Returns isDateStyle(styleIndex) so the sheet parser can tell a real date from a plain number.
+  function parseStylesXml(xml) {
+    var customFmts = {};
+    if (xml) {
+      var fmtRe = /<numFmt\b([^>]*?)\/?>/g;
+      var fm;
+      while ((fm = fmtRe.exec(xml))) {
+        var id = getXmlAttr(fm[1], "numFmtId");
+        var code = getXmlAttr(fm[1], "formatCode");
+        if (id != null && code != null) customFmts[id] = xmlUnescape(code);
+      }
+    }
+    var cellXfs = [];
+    var xfsBlock = xml && xml.match(/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/);
+    if (xfsBlock) {
+      var xfRe = /<xf\b([^>]*?)\/?>/g;
+      var xm;
+      while ((xm = xfRe.exec(xfsBlock[1]))) {
+        var numFmtId = getXmlAttr(xm[1], "numFmtId");
+        cellXfs.push(numFmtId == null ? 0 : parseInt(numFmtId, 10));
+      }
+    }
+    return function isDateStyle(styleIndex) {
+      var numFmtId = cellXfs[styleIndex];
+      if (numFmtId == null) return false;
+      if (BUILTIN_DATE_FMT_IDS[numFmtId]) return true;
+      if (numFmtId >= 164 && customFmts[numFmtId] != null) return looksLikeDateFormatCode(customFmts[numFmtId]);
+      return false;
+    };
+  }
+
+  // Excel date serial -> "YYYY/MM/DD" (matches the text-date format toYearMonth() already
+  // parses). 25569 = days between the Excel epoch (1899-12-30, already adjusted for Excel's
+  // 1900-leap-year bug) and the Unix epoch -- the standard constant every reader uses.
+  function excelSerialToDateStr(serial) {
+    var ms = Math.round((serial - 25569) * 86400 * 1000);
+    var d = new Date(ms);
+    return d.getUTCFullYear() + "/" + String(d.getUTCMonth() + 1).padStart(2, "0") + "/" + String(d.getUTCDate()).padStart(2, "0");
+  }
+
+  function colLetterToIndex(letters) {
+    var n = 0;
+    for (var i = 0; i < letters.length; i++) n = n * 26 + (letters.charCodeAt(i) - 64);
+    return n - 1;
+  }
+
+  // sheetN.xml -> array of arrays, one per <row>. Cells are sparse in the XML (empty cells
+  // are simply omitted) so we place each by its "r" reference (e.g. "C7" -> column index 2)
+  // and fill gaps with "" to get a dense row matching parseCSV()'s output shape.
+  function parseSheetXml(xml, sharedStrings, isDateStyle) {
+    var rows = [];
+    var rowRe = /<row\b[^>]*\/>|<row\b[^>]*>([\s\S]*?)<\/row>/g;
+    var rm;
+    while ((rm = rowRe.exec(xml))) {
+      var rowInner = rm[1] || "";
+      var cells = [];
+      var cellRe = /<c\b([^>]*?)\/>|<c\b([^>]*?)>([\s\S]*?)<\/c>/g;
+      var cm;
+      while ((cm = cellRe.exec(rowInner))) {
+        var attrs = cm[1] != null ? cm[1] : cm[2];
+        var inner = cm[3] || "";
+        var ref = getXmlAttr(attrs, "r") || "";
+        var colLetters = (ref.match(/^[A-Z]+/) || [""])[0];
+        var colIdx = colLetters ? colLetterToIndex(colLetters) : cells.length;
+        var type = getXmlAttr(attrs, "t");
+        var styleIdx = getXmlAttr(attrs, "s");
+        var value = "";
+        if (type === "inlineStr") {
+          var tRe = /<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g, tm, text = "";
+          while ((tm = tRe.exec(inner))) text += xmlUnescape(tm[1]);
+          value = text;
+        } else {
+          var vM = inner.match(/<v>([\s\S]*?)<\/v>/);
+          var raw = vM ? vM[1] : "";
+          if (type === "s") {
+            var sIdx = parseInt(raw, 10);
+            value = sharedStrings[sIdx] != null ? sharedStrings[sIdx] : "";
+          } else if (type === "str" || type === "e") {
+            value = xmlUnescape(raw);
+          } else if (type === "b") {
+            value = raw === "1" ? "TRUE" : "FALSE";
+          } else {
+            var num = raw === "" ? null : parseFloat(raw);
+            if (num != null && !isNaN(num)) {
+              value = (styleIdx != null && isDateStyle(parseInt(styleIdx, 10))) ? excelSerialToDateStr(num) : num;
+            } else value = "";
+          }
+        }
+        cells[colIdx] = value;
+      }
+      var denseRow = [];
+      for (var c = 0; c < cells.length; c++) denseRow.push(cells[c] === undefined ? "" : cells[c]);
+      rows.push(denseRow);
+    }
+    return rows;
+  }
+
+  // Opening-tag attrs regardless of whether the element is self-closed (<sheet .../>, the
+  // usual Excel style) or written open/close (<sheet ...></sheet>, seen from other XLSX
+  // writers, e.g. TikTok Shop/Tokopedia's own export tool) -- \/?> matches either.
+  function parseWorkbookXml(xml) {
+    var sheets = [];
+    var re = /<sheet\b([^>]*?)\/?>/g;
+    var m;
+    while ((m = re.exec(xml))) {
+      sheets.push({ name: xmlUnescape(getXmlAttr(m[1], "name") || ""), rid: getXmlAttr(m[1], "r:id") });
+    }
+    return sheets;
+  }
+
+  function parseWorkbookRels(xml) {
+    var map = {};
+    var re = /<Relationship\b([^>]*?)\/?>/g;
+    var m;
+    while ((m = re.exec(xml))) {
+      var id = getXmlAttr(m[1], "Id");
+      if (id) map[id] = getXmlAttr(m[1], "Target");
+    }
+    return map;
+  }
+
+  function resolveXlPath(target) {
+    if (!target) return null;
+    return target.charAt(0) === "/" ? target.slice(1) : "xl/" + target;
+  }
+
+  // Top-level: .xlsx ArrayBuffer -> [{name, rows}, ...] in workbook sheet order.
+  async function xlsxToSheets(arrayBuffer) {
+    var entries = readZipEntries(arrayBuffer);
+    var workbookXml = await readZipEntryText(arrayBuffer, entries, "xl/workbook.xml");
+    if (!workbookXml) throw new Error("File .xlsx tidak valid (xl/workbook.xml tidak ditemukan).");
+    var relsXml = await readZipEntryText(arrayBuffer, entries, "xl/_rels/workbook.xml.rels");
+    var sharedStringsXml = await readZipEntryText(arrayBuffer, entries, "xl/sharedStrings.xml");
+    var stylesXml = await readZipEntryText(arrayBuffer, entries, "xl/styles.xml");
+
+    var sharedStrings = parseSharedStringsXml(sharedStringsXml);
+    var isDateStyle = parseStylesXml(stylesXml);
+    var relsMap = relsXml ? parseWorkbookRels(relsXml) : {};
+    var sheetDefs = parseWorkbookXml(workbookXml);
+
+    var sheets = [];
+    for (var i = 0; i < sheetDefs.length; i++) {
+      var def = sheetDefs[i];
+      var path = resolveXlPath(def.rid ? relsMap[def.rid] : null) || ("xl/worksheets/sheet" + (i + 1) + ".xml");
+      var sheetXml = await readZipEntryText(arrayBuffer, entries, path);
+      if (!sheetXml) continue;
+      sheets.push({ name: def.name || ("Sheet" + (i + 1)), rows: parseSheetXml(sheetXml, sharedStrings, isDateStyle) });
+    }
+    if (!sheets.length) throw new Error("Tidak ada sheet yang bisa dibaca dari file .xlsx ini.");
+    return sheets;
+  }
+
+  // Kalau ada beberapa sheet, pilih yang header-nya cocok dengan kolom wajib untuk jenis file
+  // ini (dedup dari findCol() yang sama dipakai processPencairan/processPesanan/processModal) --
+  // jadi user tidak perlu tahu/pilih sheet mana yang benar secara manual. Fallback ke sheet
+  // pertama kalau tidak ada yang cocok, biar pesan error "kolom wajib tidak ditemukan" di
+  // processX() yang jelasin masalahnya.
+  function pickSheetByColumns(sheets, colsDef, requiredKeys) {
+    for (var i = 0; i < sheets.length; i++) {
+      var headers = sheets[i].rows[0] || [];
+      var ok = requiredKeys.every(function (k) { return findCol(headers, colsDef[k]) > -1; });
+      if (ok) return sheets[i];
+    }
+    return sheets[0];
+  }
+
+  /* ================= File handlers ================= */
+  function readFile(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result); };
+      reader.onerror = reject;
+      reader.readAsText(file, "utf-8");
+    });
+  }
+
+  function readFileAsArrayBuffer(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result); };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  // Satu pintu masuk buat kedua format: baca file lalu kembalikan rows (array of arrays),
+  // bentuknya identik baik dari CSV maupun XLSX -- processPencairan/processPesanan/processModal
+  // tidak perlu tahu file aslinya format apa.
+  async function parseUploadedFile(file, colsDef, requiredKeys) {
+    var isXlsx = /\.xlsx$/i.test(file.name);
+    if (!isXlsx) return parseCSV(await readFile(file));
+    var sheets = await xlsxToSheets(await readFileAsArrayBuffer(file));
+    var sheet = sheets.length > 1 ? pickSheetByColumns(sheets, colsDef, requiredKeys) : sheets[0];
+    return sheet.rows;
+  }
+
+  function logUpload(label, fileName, rows, extra) {
+    state.uploads.unshift({ t: Date.now(), label: label, fileName: fileName, rows: rows, extra: extra || "" });
+    state.uploads = state.uploads.slice(0, 40);
+  }
+
+  var PENCAIRAN_COLS = {
+    ID: ["ID Pesanan/Penyesuaian"],
+    JENIS: ["Jenis transaksi"],
+    WPEMESANAN: ["Waktu pemesanan"],
+    WPEMBAYARAN: ["Waktu pembayaran pesanan"],
+    PENDAPATAN: ["Total Pendapatan"],
+    BIAYA_TOTAL: ["Total Biaya"],
+    KOMISI_PLATFORM: ["Biaya komisi platform"],
+    KOMISI_DINAMIS: ["Komisi dinamis"],
+    CASHBACK: ["Biaya layanan cashback bonus"],
+    AFILIASI: ["Komisi Afiliasi"],
+    IKLAN_AFILIASI: ["Komisi Iklan Toko afiliasi"],
+    PROSES_PESANAN: ["Biaya pemrosesan pesanan"],
+    ONGKIR_TALANGAN: ["Ongkir yang ditalangi penyedia jasa logistik"],
+    ONGKIR_PLATFORM: ["Ongkir yang ditanggung platform"],
+    ONGKIR_PEMBELI: ["Ongkir yang ditanggung pembeli"],
+    ONGKIR_KEMBALI_PEMBELI: ["Pengembalian ongkir yang ditanggung pembeli"],
+    ONGKIR_KEMBALI_BARANG: ["Ongkir pengembalian barang (yang ditanggung pembeli)"],
+    PENYESUAIAN: ["Jumlah penyesuaian"],
+    PENYELESAIAN: ["Jumlah penyelesaian pembayaran"]
+  };
+
+  function processPencairan(rows, fileName) {
+    if (rows.length < 2) throw new Error("File kosong atau formatnya tidak dikenali.");
+    var headers = rows[0];
+    var idx = {};
+    var missing = [];
+    Object.keys(PENCAIRAN_COLS).forEach(function (key) {
+      var c = findCol(headers, PENCAIRAN_COLS[key]);
+      idx[key] = c;
+      if (c === -1 && (key === "ID" || key === "JENIS" || key === "WPEMBAYARAN" || key === "PENDAPATAN")) missing.push(PENCAIRAN_COLS[key][0]);
+    });
+    if (missing.length) throw new Error("Kolom wajib tidak ditemukan: " + missing.join(", "));
+
+    var existingKeys = {};
+    state.pencairanRows.forEach(function (r) { existingKeys[rowKey(r)] = true; });
+
+    var added = 0, skipped = 0;
+    for (var i = 1; i < rows.length; i++) {
+      var raw = rows[i];
+      if (!raw || !raw.length || (raw.length === 1 && raw[0].trim() === "")) continue;
+      var get = function (k) { return idx[k] > -1 ? raw[idx[k]] : ""; };
+      var r = [];
+      r[PROW.ID] = String(get("ID") || "").trim();
+      if (!r[PROW.ID]) { skipped++; continue; }
+      r[PROW.JENIS] = String(get("JENIS") || "").trim();
+      r[PROW.WPEMESANAN] = String(get("WPEMESANAN") || "").trim();
+      r[PROW.WPEMBAYARAN] = String(get("WPEMBAYARAN") || "").trim();
+      r[PROW.PENDAPATAN] = toNumber(get("PENDAPATAN"));
+      r[PROW.BIAYA_TOTAL] = toNumber(get("BIAYA_TOTAL"));
+      r[PROW.KOMISI_PLATFORM] = toNumber(get("KOMISI_PLATFORM"));
+      r[PROW.KOMISI_DINAMIS] = toNumber(get("KOMISI_DINAMIS"));
+      r[PROW.CASHBACK] = toNumber(get("CASHBACK"));
+      r[PROW.AFILIASI] = toNumber(get("AFILIASI"));
+      r[PROW.IKLAN_AFILIASI] = toNumber(get("IKLAN_AFILIASI"));
+      r[PROW.PROSES_PESANAN] = toNumber(get("PROSES_PESANAN"));
+      r[PROW.ONGKIR_TALANGAN] = toNumber(get("ONGKIR_TALANGAN"));
+      r[PROW.ONGKIR_PLATFORM] = toNumber(get("ONGKIR_PLATFORM"));
+      r[PROW.ONGKIR_PEMBELI] = toNumber(get("ONGKIR_PEMBELI"));
+      r[PROW.ONGKIR_KEMBALI_PEMBELI] = toNumber(get("ONGKIR_KEMBALI_PEMBELI"));
+      r[PROW.ONGKIR_KEMBALI_BARANG] = toNumber(get("ONGKIR_KEMBALI_BARANG"));
+      r[PROW.PENYESUAIAN] = toNumber(get("PENYESUAIAN"));
+      r[PROW.PENYELESAIAN] = toNumber(get("PENYELESAIAN"));
+
+      var key = rowKey(r);
+      if (existingKeys[key]) { skipped++; continue; }
+      existingKeys[key] = true;
+      state.pencairanRows.push(r);
+      added++;
+    }
+    logUpload("Data Pencairan", fileName, added, skipped ? (skipped + " baris duplikat dilewati") : "");
+    return { added: added, skipped: skipped };
+  }
+
+  var PESANAN_COLS = {
+    ORDER: ["Order ID"],
+    SKU: ["SKU ID"],
+    QTY: ["Quantity"],
+    RETQTY: ["Sku Quantity of return"],
+    NAME: ["Product Name"],
+    VARIATION: ["Variation"],
+    SELLERSKU: ["Seller SKU"],
+    CATEGORY: ["Product Category"]
+  };
+
+  function processPesanan(rows, fileName) {
+    if (rows.length < 2) throw new Error("File kosong atau formatnya tidak dikenali.");
+    var headers = rows[0];
+    var idx = {};
+    var missing = [];
+    Object.keys(PESANAN_COLS).forEach(function (key) {
+      var c = findCol(headers, PESANAN_COLS[key]);
+      idx[key] = c;
+      if (c === -1 && (key === "ORDER" || key === "SKU" || key === "QTY")) missing.push(PESANAN_COLS[key][0]);
+    });
+    if (missing.length) throw new Error("Kolom wajib tidak ditemukan: " + missing.join(", "));
+
+    var added = 0;
+    for (var i = 1; i < rows.length; i++) {
+      var raw = rows[i];
+      if (!raw || !raw.length) continue;
+      var orderId = String(raw[idx.ORDER] || "").trim();
+      var sku = String(raw[idx.SKU] || "").trim();
+      if (!orderId || !sku) continue;
+      var qtyRaw = toNumber(raw[idx.QTY]);
+      var qtyReturned = idx.RETQTY > -1 ? toNumber(raw[idx.RETQTY]) : 0;
+      // Net qty = qty actually kept by the buyer (excludes returned units) — this is what
+      // HPP should be charged on. A fully-returned line (qtyReturned >= qtyRaw) costs 0,
+      // per keputusan: barang retur dianggap tidak menghanguskan modal (bisa diklaim ke supplier).
+      var qty = Math.max(0, qtyRaw - qtyReturned);
+      var name = idx.NAME > -1 ? String(raw[idx.NAME] || "").trim() : "";
+      var variation = idx.VARIATION > -1 ? String(raw[idx.VARIATION] || "").trim() : "";
+      var sellerSku = idx.SELLERSKU > -1 ? String(raw[idx.SELLERSKU] || "").trim() : "";
+      var category = idx.CATEGORY > -1 ? String(raw[idx.CATEGORY] || "").trim() : "";
+      if (!state.orderMaster[orderId]) state.orderMaster[orderId] = [];
+      var list = state.orderMaster[orderId];
+      var found = false;
+      for (var j = 0; j < list.length; j++) {
+        if (list[j][0] === sku) { list[j][1] = qty; found = true; break; }
+      }
+      if (!found) { list.push([sku, qty]); added++; }
+      if (name || variation || sellerSku || category) state.skuNames[sku] = { name: name, variation: variation, sellerSku: sellerSku, category: category };
+    }
+    logUpload("Data Pesanan", fileName, added, "");
+    return { added: added };
+  }
+
+  var MODAL_COLS = {
+    SKU: ["ID SKU", "SKU ID"],
+    HARGA: ["Harga Modal", "HARGA", "Modal", "Harga"]
+  };
+
+  function processModal(rows, fileName) {
+    if (rows.length < 2) throw new Error("File kosong atau formatnya tidak dikenali.");
+    var headers = rows[0];
+    var idxSku = findCol(headers, MODAL_COLS.SKU);
+    var idxHarga = findCol(headers, MODAL_COLS.HARGA);
+    if (idxSku === -1 || idxHarga === -1) throw new Error("Butuh kolom ID SKU dan Harga Modal.");
+    var added = 0;
+    for (var i = 1; i < rows.length; i++) {
+      var raw = rows[i];
+      if (!raw || !raw.length) continue;
+      var sku = String(raw[idxSku] || "").trim();
+      if (!sku) continue;
+      var harga = toNumber(raw[idxHarga]);
+      if (harga <= 0) continue;
+      state.skuCost[sku] = harga;
+      added++;
+    }
+    logUpload("Harga Modal SKU", fileName, added, "");
+    return { added: added };
+  }
+
+  /* ================= Compute ================= */
+  function computeMonthly() {
+    var months = {};
+    function bucket(ym) {
+      if (!months[ym]) months[ym] = {
+        ym: ym, pendapatan: 0, biayaTotal: 0,
+        fees: {
+          komisiPlatform: 0, komisiDinamis: 0, cashback: 0, afiliasi: 0, iklanAfiliasi: 0, prosesPesanan: 0,
+          ongkirTalangan: 0, ongkirPlatform: 0, ongkirPembeli: 0, ongkirKembaliPembeli: 0, ongkirKembaliBarang: 0
+        },
+        // Kategori dihitung per BARIS pencairan (bukan per Order ID), konsisten dengan basis waktu
+        // "waktu pembayaran" yang sudah dipakai untuk seluruh app -- satu order yang diretur bulan
+        // berikutnya akan muncul sebagai baris "retur" di BULAN RETUR itu sendiri, terpisah dari
+        // baris "selesai" di bulan penjualan aslinya.
+        txCounts: {
+          selesai: { n: 0, pendapatan: 0 },
+          retur: { n: 0, pendapatan: 0 },
+          penggantianLogistik: { n: 0, pendapatan: 0 },
+          penggantianPlatform: { n: 0, pendapatan: 0 },
+          lainnya: { n: 0, pendapatan: 0 }
+        },
+        penyesuaian: 0, penyelesaian: 0,
+        hppFound: 0, qtyFound: 0, hppEstQty: 0, ordersMatched: 0, ordersUnmatched: 0, rows: 0
+      };
+      return months[ym];
+    }
+
+    state.pencairanRows.forEach(function (r) {
+      var ym = toYearMonth(r[PROW.WPEMBAYARAN]) || toYearMonth(r[PROW.WPEMESANAN]) || "?";
+      var m = bucket(ym);
+      m.rows++;
+      m.pendapatan += r[PROW.PENDAPATAN];
+      m.biayaTotal += r[PROW.BIAYA_TOTAL];
+      m.fees.komisiPlatform += r[PROW.KOMISI_PLATFORM];
+      m.fees.komisiDinamis += r[PROW.KOMISI_DINAMIS];
+      m.fees.cashback += r[PROW.CASHBACK];
+      m.fees.afiliasi += r[PROW.AFILIASI];
+      m.fees.iklanAfiliasi += r[PROW.IKLAN_AFILIASI];
+      m.fees.prosesPesanan += r[PROW.PROSES_PESANAN];
+      m.fees.ongkirTalangan += r[PROW.ONGKIR_TALANGAN];
+      m.fees.ongkirPlatform += r[PROW.ONGKIR_PLATFORM];
+      m.fees.ongkirPembeli += r[PROW.ONGKIR_PEMBELI];
+      m.fees.ongkirKembaliPembeli += r[PROW.ONGKIR_KEMBALI_PEMBELI];
+      m.fees.ongkirKembaliBarang += r[PROW.ONGKIR_KEMBALI_BARANG];
+      m.penyesuaian += r[PROW.PENYESUAIAN];
+      m.penyelesaian += r[PROW.PENYELESAIAN];
+
+      var jenis = r[PROW.JENIS];
+      var pendapatanRow = r[PROW.PENDAPATAN];
+      var cat = jenis === "Pesanan" ? (pendapatanRow < 0 ? "retur" : "selesai")
+        : jenis === "Penggantian Biaya Logistik" ? "penggantianLogistik"
+        : jenis === "Penggantian dana oleh platform" ? "penggantianPlatform"
+        : "lainnya";
+      m.txCounts[cat].n++;
+      m.txCounts[cat].pendapatan += pendapatanRow;
+    });
+
+    // HPP dihitung sekali per Order ID (bukan per baris pencairan) — satu order bisa muncul
+    // sebagai 2+ baris "Pesanan" di Data Pencairan (penjualan awal + retur/refund), dan kalau
+    // di-loop per baris HPP-nya kehitung dobel padahal Omzet-nya sudah net ke 0. Order ID
+    // di-attach ke bulan settlement PALING AWAL yang ditemukan (biasanya baris penjualan asli,
+    // bukan baris retur yang menyusul belakangan).
+    var orderCanonical = {}; // orderId -> { ym, sortKey }
+    state.pencairanRows.forEach(function (r) {
+      if (r[PROW.JENIS] !== "Pesanan") return;
+      var id = r[PROW.ID];
+      var sortKey = r[PROW.WPEMBAYARAN] || r[PROW.WPEMESANAN] || "";
+      var ym = toYearMonth(r[PROW.WPEMBAYARAN]) || toYearMonth(r[PROW.WPEMESANAN]) || "?";
+      var existing = orderCanonical[id];
+      if (!existing || sortKey < existing.sortKey) orderCanonical[id] = { ym: ym, sortKey: sortKey };
+    });
+    Object.keys(orderCanonical).forEach(function (id) {
+      var m = bucket(orderCanonical[id].ym);
+      var skuList = state.orderMaster[id];
+      if (skuList && skuList.length) {
+        m.ordersMatched++;
+        skuList.forEach(function (pair) {
+          var sku = pair[0], qty = pair[1]; // qty net dari retur, lihat processPesanan()
+          if (qty <= 0) return; // baris di-retur penuh -> tidak ada HPP
+          var cost = state.skuCost[sku];
+          if (cost != null) { m.hppFound += cost * qty; m.qtyFound += qty; }
+          else { m.hppEstQty += qty; }
+        });
+      } else {
+        m.ordersUnmatched++;
+      }
+    });
+
+    var list = Object.keys(months).map(function (ym) {
+      var m = months[ym];
+      // avgCost is null (not 0) when we have NO cost reference at all yet ---
+      // dividing by zero must never silently become "modal = Rp 0".
+      var hasCostRef = m.qtyFound > 0;
+      var avgCost = hasCostRef ? m.hppFound / m.qtyFound : null;
+      var hppEst = hasCostRef ? m.hppEstQty * avgCost : 0;
+      var hppUnknownQty = hasCostRef ? 0 : m.hppEstQty; // qty we truly cannot estimate yet
+      var hppTotal = m.hppFound + hppEst;
+      // hppComplete requires BOTH: at least one order in this month has been matched against
+      // Data Pesanan (otherwise we have zero SKU/qty info at all — not "0 cost", just unknown),
+      // AND every matched unit has a real or estimated cost (hppUnknownQty === 0).
+      var hppComplete = m.ordersMatched > 0 && hppUnknownQty === 0;
+      var labaKotor = hppComplete ? m.pendapatan - hppTotal : null;
+      var labaUsaha = labaKotor != null ? labaKotor + m.biayaTotal + m.penyesuaian : null;
+      var totalOrdersPesanan = m.ordersMatched + m.ordersUnmatched;
+      return Object.assign(m, {
+        hppTotal: hppTotal, hppTotalDisplay: hppComplete ? hppTotal : null, hppEst: hppEst, hppUnknownQty: hppUnknownQty, hppComplete: hppComplete,
+        labaKotor: labaKotor, labaUsaha: labaUsaha,
+        marginKotor: (labaKotor != null && m.pendapatan) ? labaKotor / m.pendapatan : null,
+        marginUsaha: (labaUsaha != null && m.pendapatan) ? labaUsaha / m.pendapatan : null,
+        matchRate: totalOrdersPesanan ? m.ordersMatched / totalOrdersPesanan : 0,
+        qtyTotal: m.qtyFound + m.hppEstQty,
+        qtyCoverage: (m.qtyFound + m.hppEstQty) ? m.qtyFound / (m.qtyFound + m.hppEstQty) : 0
+      });
+    });
+    // Gabungkan dengan bulan yang sudah diarsip (lihat archiveMonth()) -- raw rows-nya sudah
+    // dihapus dari state.pencairanRows, jadi satu-satunya jejak yang tersisa adalah objek
+    // ringkasan yang disimpan di state.monthlyArchive. Bentuknya sudah identik dengan hasil
+    // .map() di atas (dihasilkan dari computeMonthly() itu sendiri saat diarsipkan), jadi
+    // monthTable()/monthDetail()/trendChart() bisa render bulan arsip persis seperti bulan live.
+    // Kalau ym yang sama muncul di keduanya (mis. ada Data Pencairan susulan diupload untuk bulan
+    // yang sudah kadung diarsip), versi LIVE yang menang -- itu tandanya ada data baru masuk untuk
+    // bulan itu, jadi lebih akurat daripada snapshot arsip yang sudah lawas.
+    var liveYms = {};
+    list.forEach(function (m) { liveYms[m.ym] = true; });
+    (state.monthlyArchive || []).forEach(function (archived) {
+      if (liveYms[archived.ym]) return;
+      list.push(Object.assign({}, archived, { archived: true }));
+    });
+    list.sort(function (a, b) { return a.ym < b.ym ? -1 : 1; });
+    // Growth month-over-month, dihitung terhadap bulan SEBELUMNYA dalam urutan kronologis
+    // (bukan Object.keys order, karena itu tidak terjamin urut). null kalau bulan sebelumnya
+    // tidak ada, nilainya null (HPP/Laba belum bisa dihitung), atau nilai sebelumnya 0 (growth
+    // % dari 0 tidak bermakna).
+    function growthPct(curr, prev) {
+      if (curr == null || prev == null || !prev) return null;
+      return (curr - prev) / Math.abs(prev);
+    }
+    list.forEach(function (m, i) {
+      var prev = i > 0 ? list[i - 1] : null;
+      m.growth = prev ? {
+        pendapatan: growthPct(m.pendapatan, prev.pendapatan),
+        hppTotal: growthPct(m.hppTotalDisplay, prev.hppTotalDisplay),
+        labaKotor: growthPct(m.labaKotor, prev.labaKotor),
+        labaUsaha: growthPct(m.labaUsaha, prev.labaUsaha)
+      } : null;
+    });
+    return list;
+  }
+
+  // Aggregates every SKU that shows up in a matched order but has no entry in
+  // state.skuCost yet, across ALL uploaded Data Pencairan rows (not per-month) —
+  // this powers the "SKU belum ada harga modal" manual-fill panel.
+  function skuMeta(sku) {
+    var v = state.skuNames[sku];
+    if (!v) return { name: "", variation: "", sellerSku: "", category: "" };
+    if (typeof v === "string") return { name: v, variation: "", sellerSku: "", category: "" }; // legacy saved state
+    return { name: v.name || "", variation: v.variation || "", sellerSku: v.sellerSku || "", category: v.category || "" };
+  }
+
+  function computeMissingSkus() {
+    var missing = {}; // sku -> { sku, qty, orders: Set-ish count, name, variation, sellerSku, category }
+    var seenOrders = {}; // dedupe: satu Order ID bisa muncul 2x di Data Pencairan (jual + retur)
+    state.pencairanRows.forEach(function (r) {
+      if (r[PROW.JENIS] !== "Pesanan") return;
+      var id = r[PROW.ID];
+      if (seenOrders[id]) return;
+      seenOrders[id] = true;
+      var skuList = state.orderMaster[id];
+      if (!skuList || !skuList.length) return;
+      skuList.forEach(function (pair) {
+        var sku = pair[0], qty = pair[1]; // qty net dari retur, lihat processPesanan()
+        if (qty <= 0) return;
+        if (state.skuCost[sku] != null) return;
+        if (!missing[sku]) {
+          var meta = skuMeta(sku);
+          missing[sku] = { sku: sku, qty: 0, orders: 0, name: meta.name, variation: meta.variation, sellerSku: meta.sellerSku, category: meta.category };
+        }
+        missing[sku].qty += qty;
+        missing[sku].orders += 1;
+      });
+    });
+    var list = Object.keys(missing).map(function (k) { return missing[k]; });
+    list.sort(function (a, b) { return b.qty - a.qty; });
+    return list;
+  }
+
+  /* ================= Formatting ================= */
+  function rp(n, opts) {
+    opts = opts || {};
+    var sign = n < 0 ? "-" : "";
+    var v = Math.round(Math.abs(n));
+    var s = v.toLocaleString("id-ID");
+    return sign + (opts.symbol === false ? "" : "Rp ") + s;
+  }
+  function pct(n) { return (n * 100).toFixed(1) + "%"; }
+  function rpOrDash(n) { return n == null ? "—" : rp(n); }
+  function pctOrDash(n) { return n == null ? "—" : pct(n); }
+  function monthLabel(ym) {
+    if (ym === "?") return "Tanggal tidak dikenali";
+    var parts = ym.split("-");
+    var names = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    var idx = parseInt(parts[1], 10) - 1;
+    return names[idx] + " " + parts[0];
+  }
+
+  /* ================= Render ================= */
+  var expandedMonth = null;
+
+  function render() {
+    renderUploadStatus();
+    renderLog();
+    renderDashboard();
+    renderFooter();
+  }
+
+  function renderUploadStatus() {
+    var pCount = state.pencairanRows.length;
+    var oCount = Object.keys(state.orderMaster).length;
+    var mCount = Object.keys(state.skuCost).length;
+    document.getElementById("status-pencairan").textContent = pCount ? pCount.toLocaleString("id-ID") + " baris tersimpan" : "";
+    document.getElementById("status-pencairan").className = "status-line" + (pCount ? " ok" : "");
+    document.getElementById("status-pesanan").textContent = oCount ? oCount.toLocaleString("id-ID") + " order dikenal" : "";
+    document.getElementById("status-pesanan").className = "status-line" + (oCount ? " ok" : "");
+    document.getElementById("status-modal").textContent = mCount ? mCount.toLocaleString("id-ID") + " SKU punya harga modal" : "";
+    document.getElementById("status-modal").className = "status-line" + (mCount ? " ok" : "");
+  }
+
+  function renderLog() {
+    var el = document.getElementById("upload-log");
+    if (!state.uploads.length) { el.innerHTML = ""; return; }
+    el.innerHTML = state.uploads.slice(0, 8).map(function (u) {
+      var d = new Date(u.t);
+      var tstr = d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" }) + " " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+      return '<div class="log-row"><span>' + esc(u.label) + " &mdash; " + esc(u.fileName) + " (" + u.rows + (u.extra ? ", " + esc(u.extra) : "") + ')</span><span class="t">' + tstr + "</span></div>";
+    }).join("");
+  }
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  function renderFooter() {
+    document.getElementById("footer-stats").textContent =
+      state.pencairanRows.length ? state.pencairanRows.length.toLocaleString("id-ID") + " baris pencairan tersimpan" : "";
+  }
+
+  function renderDashboard() {
+    var host = document.getElementById("dashboard");
+    var months = computeMonthly();
+    if (!months.length) {
+      host.innerHTML = '<div class="card empty"><div class="big">Belum ada data</div>Unggah Data Pencairan bulan pertama untuk mulai melihat ringkasan Omzet, HPP, dan Laba Usaha di sini.</div>';
+      return;
+    }
+    var latest = months[months.length - 1];
+
+    var html = "";
+    html += '<section><div class="section-head"><h2>Ringkasan bulan terbaru &mdash; ' + monthLabel(latest.ym) + "</h2></div>";
+    html += '<div class="kpi-row">' + kpiCards(latest) + "</div></section>";
+
+    html += '<section><div class="section-head"><h2>Tren bulanan</h2><span class="hint">Omzet, HPP, Laba Usaha</span></div>';
+    html += '<div class="card chart-card">' + trendChart(months) + "</div></section>";
+
+    html += '<section><div class="section-head"><h2>Rincian per bulan</h2><span class="hint">Klik satu baris untuk lihat detail biaya</span></div>';
+    html += '<div class="card table-scroll">' + monthTable(months) + "</div></section>";
+
+    html += missingSkusPanel();
+
+    host.innerHTML = html;
+    attachRowHandlers(months);
+    attachMissingSkuHandlers();
+  }
+
+  function missingSkusPanel() {
+    var list = computeMissingSkus();
+    if (!list.length) return "";
+    var rows = list.map(function (it) {
+      var label = it.name ? esc(it.name) : "(nama produk tidak diketahui)";
+      var metaBits = [];
+      if (it.variation) metaBits.push("Varian: " + esc(it.variation));
+      if (it.sellerSku) metaBits.push("Seller SKU: " + esc(it.sellerSku));
+      metaBits.push("ID SKU " + esc(it.sku));
+      metaBits.push(Math.round(it.qty).toLocaleString("id-ID") + " unit di " + it.orders + " order");
+      return '<li data-sku="' + esc(it.sku) + '">' +
+        '<div class="info"><div class="name">' + label + '</div>' +
+        '<div class="meta">' + metaBits.join(" &middot; ") + "</div></div>" +
+        '<div class="fill"><input type="number" min="0" step="1" inputmode="numeric" placeholder="Harga modal/unit" class="missing-sku-input" />' +
+        '<button class="btn small primary missing-sku-save" type="button">Simpan</button></div>' +
+        "</li>";
+    }).join("");
+    return '<section><div class="section-head"><h2>SKU belum ada harga modal</h2><span class="hint">' + list.length +
+      ' SKU &mdash; isi manual satu-satu di bawah, atau <button class="btn small" type="button" id="btn-export-missing-sku">unduh sebagai CSV</button> buat diisi di Excel/Sheets lalu upload lagi ke Harga Modal SKU</span></div>' +
+      '<div class="card" style="padding:4px 16px;"><ul class="missing-sku-list">' + rows + "</ul></div></section>";
+  }
+
+  // File CSV-nya sengaja pakai header "ID SKU" & "HARGA MODAL" -- sama persis dengan yang
+  // dikenali processModal()/MODAL_COLS -- jadi kolom kosong yang diisi user tinggal diupload
+  // lagi ke dropzone Harga Modal SKU tanpa perlu format khusus. Kolom lain (nama/varian/qty)
+  // cuma buat bantu user isi harga yang benar & prioritas mana yang paling penting.
+  function missingSkusCsv() {
+    var list = computeMissingSkus();
+    function field(v) {
+      var s = String(v == null ? "" : v);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }
+    var lines = [["ID SKU", "Kategori", "Nama Produk", "Nilai Variasi", "SKU Penjual", "Qty Terjual", "HARGA MODAL"].map(field).join(",")];
+    list.forEach(function (it) {
+      lines.push([it.sku, it.category, it.name, it.variation, it.sellerSku, Math.round(it.qty), ""].map(field).join(","));
+    });
+    return lines.join("\r\n");
+  }
+
+  function attachMissingSkuHandlers() {
+    document.querySelectorAll(".missing-sku-list li").forEach(function (li) {
+      var sku = li.getAttribute("data-sku");
+      var input = li.querySelector(".missing-sku-input");
+      var btn = li.querySelector(".missing-sku-save");
+      function save() {
+        var val = toNumber(input.value);
+        if (!val || val <= 0) { input.focus(); return; }
+        state.skuCost[sku] = val;
+        persist("Harga modal SKU disimpan.");
+      }
+      btn.addEventListener("click", save);
+      input.addEventListener("keydown", function (e) { if (e.key === "Enter") save(); });
+    });
+    var exportBtn = document.getElementById("btn-export-missing-sku");
+    if (exportBtn) {
+      exportBtn.addEventListener("click", function () {
+        downloadFile("sku-belum-ada-harga-modal.csv", missingSkusCsv(), "text/csv");
+      });
+    }
+  }
+
+  // Badge kecil "▲ 12.3% vs bulan lalu" -- null kalau tidak ada bulan sebelumnya atau salah
+  // satu sisinya belum bisa dihitung (lihat growthPct() di computeMonthly()).
+  function growthBadge(g) {
+    if (g == null) return "";
+    var cls = g > 0 ? "pos" : (g < 0 ? "neg" : "");
+    var arrow = g > 0 ? "▲" : (g < 0 ? "▼" : "▬");
+    return ' <span class="growth ' + cls + '">' + arrow + " " + pct(Math.abs(g)) + " vs bulan lalu</span>";
+  }
+
+  function kpiCards(m) {
+    function card(label, val, sub, cls) {
+      return '<div class="card kpi"><div class="label">' + label + '</div><div class="value' + (cls ? " " + cls : "") + '">' + val + '</div>' + (sub ? '<div class="sub">' + sub + "</div>" : "") + "</div>";
+    }
+    var hppSub = m.hppComplete
+      ? pct(m.qtyCoverage) + " qty tercakup harga modal"
+      : (m.ordersMatched === 0 ? "Upload Data Pesanan untuk menghitung ini" : "Upload Harga Modal SKU untuk menghitung ini");
+    var g = m.growth || {};
+    return (
+      card("Omzet (Total Pendapatan)", rp(m.pendapatan), growthBadge(g.pendapatan) || null) +
+      card("HPP", m.hppComplete ? rp(m.hppTotal) : "—", hppSub + growthBadge(g.hppTotal)) +
+      card("Laba Kotor", rpOrDash(m.labaKotor), (m.labaKotor != null ? pct(m.marginKotor) + " margin" : "Menunggu HPP") + growthBadge(g.labaKotor), m.labaKotor != null && m.labaKotor >= 0 ? "pos" : (m.labaKotor != null ? "neg" : "")) +
+      card("Biaya Platform", rp(m.biayaTotal), null, "neg") +
+      card("Laba Usaha", rpOrDash(m.labaUsaha), (m.labaUsaha != null ? pct(m.marginUsaha) + " margin" : "Menunggu HPP") + growthBadge(g.labaUsaha), m.labaUsaha != null && m.labaUsaha >= 0 ? "pos" : (m.labaUsaha != null ? "neg" : "")) +
+      card("Order Cocok SKU", pct(m.matchRate), m.ordersMatched + " / " + (m.ordersMatched + m.ordersUnmatched) + " order")
+    );
+  }
+
+  function trendChart(months) {
+    var w = 1080, h = 220, padL = 60, padR = 16, padT = 16, padB = 28;
+    var innerW = w - padL - padR, innerH = h - padT - padB;
+    var series = [
+      { key: "pendapatan", color: "var(--ink-faint)", label: "Omzet" },
+      { key: "hppTotalDisplay", color: "var(--warn)", label: "HPP" },
+      { key: "labaUsaha", color: "var(--accent)", label: "Laba Usaha" }
+    ];
+    var allVals = [];
+    months.forEach(function (m) { series.forEach(function (s) { if (m[s.key] != null) allVals.push(m[s.key]); }); });
+    var maxV = Math.max.apply(null, allVals.concat([0]));
+    var minV = Math.min.apply(null, allVals.concat([0]));
+    var range = (maxV - minV) || 1;
+    function x(i) { return padL + (months.length > 1 ? (i / (months.length - 1)) * innerW : innerW / 2); }
+    function y(v) { return padT + innerH - ((v - minV) / range) * innerH; }
+
+    var svg = '<svg viewBox="0 0 ' + w + " " + h + '" width="100%" style="display:block;overflow:visible" role="img" aria-label="Grafik tren bulanan">';
+    var zeroY = y(0);
+    svg += '<line x1="' + padL + '" y1="' + zeroY + '" x2="' + (w - padR) + '" y2="' + zeroY + '" stroke="var(--line-strong)" stroke-width="1" />';
+    months.forEach(function (m, i) {
+      svg += '<line x1="' + x(i) + '" y1="' + padT + '" x2="' + x(i) + '" y2="' + (h - padB) + '" stroke="var(--line)" stroke-width="1" />';
+      svg += '<text x="' + x(i) + '" y="' + (h - 8) + '" text-anchor="middle" font-size="11" fill="var(--ink-faint)" font-family="var(--body)">' + monthLabel(m.ym).split(" ")[0] + "</text>";
+    });
+    series.forEach(function (s) {
+      // a metric can be null for a month (e.g. HPP not computable yet) --
+      // break the line there instead of plotting it as zero.
+      var run = [];
+      months.forEach(function (m, i) {
+        var v = m[s.key];
+        if (v == null) {
+          if (run.length > 1) svg += drawRun(run, s.color);
+          run = [];
+          return;
+        }
+        run.push([x(i), y(v), i === months.length - 1]);
+      });
+      if (run.length > 1) svg += drawRun(run, s.color);
+      months.forEach(function (m, i) {
+        var v = m[s.key];
+        if (v == null) return;
+        svg += '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="' + (i === months.length - 1 ? 4 : 2.5) + '" fill="' + s.color + '" />';
+      });
+    });
+    function drawRun(pts, color) {
+      var line = pts.map(function (p) { return p[0] + "," + p[1]; }).join(" ");
+      return '<polyline points="' + line + '" fill="none" stroke="' + color + '" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round" />';
+    }
+    svg += "</svg>";
+
+    var legend = '<div class="chart-legend">' + series.map(function (s) {
+      return '<span><i style="background:' + s.color + '"></i>' + s.label + "</span>";
+    }).join("") + "</div>";
+    return legend + svg;
+  }
+
+  // Sel Δ ringkas buat tabel (beda dengan growthBadge() yang dipakai di kpiCards -- itu
+  // versi panjang dengan teks "vs bulan lalu" buat kartu ringkasan).
+  function growthCell(g) {
+    if (g == null) return '<td class="growth-cell">—</td>';
+    var cls = g > 0 ? "pos" : (g < 0 ? "neg" : "");
+    var arrow = g > 0 ? "▲" : (g < 0 ? "▼" : "▬");
+    return '<td class="growth-cell ' + cls + '">' + arrow + " " + pct(Math.abs(g)) + "</td>";
+  }
+
+  function monthTable(months) {
+    var rows = months.slice().reverse().map(function (m) {
+      var qualityCls = m.matchRate >= 0.9 ? "good" : m.matchRate >= 0.6 ? "warn" : "bad";
+      var expanded = expandedMonth === m.ym;
+      var g = m.growth || {};
+      var main = '<tr data-ym="' + m.ym + '" class="' + (expanded ? "expanded" : "") + '">' +
+        '<td class="month-name">' + monthLabel(m.ym) + (m.archived ? ' <span class="pill good" style="font-size:10px;">arsip</span>' : "") + "</td>" +
+        "<td>" + rp(m.pendapatan) + "</td>" +
+        growthCell(g.pendapatan) +
+        "<td>" + (m.hppComplete ? rp(m.hppTotal) : "—") + "</td>" +
+        "<td>" + rpOrDash(m.labaKotor) + "</td>" +
+        "<td>" + rp(m.biayaTotal) + "</td>" +
+        "<td>" + rpOrDash(m.labaUsaha) + "</td>" +
+        growthCell(g.labaUsaha) +
+        "<td>" + pctOrDash(m.marginUsaha) + "</td>" +
+        '<td><span class="pill ' + qualityCls + '">' + pct(m.matchRate) + " match</span></td>" +
+        "</tr>";
+      var detail = expanded ? '<tr class="detail-row"><td colspan="10"><div class="detail-wrap">' + monthDetail(m) + "</div></td></tr>" : "";
+      return main + detail;
+    }).join("");
+    return '<table class="months"><thead><tr>' +
+      "<th>Bulan</th><th>Omzet</th><th>Δ Omzet</th><th>HPP</th><th>Laba Kotor</th><th>Biaya Platform</th><th>Laba Usaha</th><th>Δ Laba Usaha</th><th>Margin</th><th>Kualitas Data</th>" +
+      "</tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+
+  function monthDetail(m) {
+    var f = m.fees;
+    var feeItems = [
+      ["Biaya Komisi Platform", f.komisiPlatform],
+      ["Komisi Dinamis (ads/campaign)", f.komisiDinamis],
+      ["Biaya Layanan Cashback Bonus", f.cashback],
+      ["Komisi Afiliasi", f.afiliasi + f.iklanAfiliasi],
+      ["Biaya Pemrosesan Pesanan", f.prosesPesanan],
+      ["Ongkir – ditalangi jasa logistik", f.ongkirTalangan],
+      ["Ongkir – ditanggung platform", f.ongkirPlatform],
+      ["Ongkir – ditanggung pembeli", f.ongkirPembeli],
+      ["Ongkir – pengembalian (ditanggung pembeli)", f.ongkirKembaliPembeli],
+      ["Ongkir – pengembalian barang", f.ongkirKembaliBarang]
+    ];
+    // Sisa yang belum dirinci per komponen (kolom biaya platform baru dari marketplace,
+    // pajak, dsb yang belum masuk daftar di atas) -- supaya rincian selalu rekonsiliasi
+    // PERSIS ke Total Biaya, bukan cuma menampilkan sebagian lalu diam-diam kurang.
+    var knownFeeSum = feeItems.reduce(function (sum, it) { return sum + it[1]; }, 0);
+    var lainLain = m.biayaTotal - knownFeeSum;
+    if (Math.round(lainLain) !== 0) feeItems.push(["Biaya lain-lain (belum dirinci)", lainLain]);
+    var feeHtml = feeItems.map(function (it) {
+      return "<li><span>" + it[0] + '</span><span class="amt">' + rp(it[1]) + "</span></li>";
+    }).join("") + '<li class="total"><span>Total Biaya Platform</span><span class="amt">' + rp(m.biayaTotal) + "</span></li>";
+
+    var tx = m.txCounts;
+    var txItems = [
+      ["Pesanan selesai", tx.selesai],
+      ["Retur / Refund", tx.retur],
+      ["Penggantian Biaya Logistik", tx.penggantianLogistik],
+      ["Penggantian dana oleh platform", tx.penggantianPlatform]
+    ];
+    if (tx.lainnya.n > 0) txItems.push(["Lainnya", tx.lainnya]);
+    var txHtml = txItems.map(function (it) {
+      return "<li><span>" + it[0] + " <span class=\"ink-faint\">(" + it[1].n + " baris)</span></span><span class=\"amt\">" + rp(it[1].pendapatan) + "</span></li>";
+    }).join("");
+
+    var qtyPct = Math.round(m.qtyCoverage * 100);
+    var matchPct = Math.round(m.matchRate * 100);
+    var unmatched = m.ordersUnmatched;
+
+    var noteUnmatched = unmatched > 0
+      ? '<div class="note"><b>' + unmatched + " order</b> di bulan ini belum ketemu di Data Pesanan yang sudah diunggah &mdash; SKU dan Quantity-nya tidak diketahui sama sekali, jadi HPP order ini <b>belum ikut terhitung</b> (HPP bulan ini masih bisa lebih rendah dari yang seharusnya). Unggah Data Pesanan untuk periode order dibuat yang lebih jauh ke belakang untuk melengkapi.</div>"
+      : "";
+    var noteEst = !m.hppComplete
+      ? (m.ordersMatched === 0
+        ? '<div class="note"><b>Belum ada order di bulan ini yang ketemu di Data Pesanan</b> &mdash; SKU dan Quantity-nya belum diketahui sama sekali, jadi HPP, Laba Kotor, dan Laba Usaha bulan ini belum bisa dihitung. Upload Data Pesanan untuk periode ini untuk melengkapi.</div>'
+        : '<div class="note"><b>Harga Modal SKU belum diupload</b> (atau SKU pada order yang cocok belum ada di daftarnya) &mdash; HPP, Laba Kotor, dan Laba Usaha bulan ini belum bisa dihitung sama sekali. Upload file Harga Modal SKU untuk melengkapi.</div>')
+      : (m.hppEstQty > 0
+        ? '<div class="note">' + Math.round(m.hppEstQty).toLocaleString("id-ID") + " unit (" + rp(m.hppEst) + ") dari order yang cocok masih pakai <b>estimasi rata-rata harga modal</b> (SKU-nya belum ada di daftar Harga Modal).</div>"
+        : "");
+
+    var sectionTitle = "font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;";
+    return '<div class="detail-grid">' +
+      '<div><h3 style="' + sectionTitle + '">Rincian Biaya Platform</h3>' +
+      '<ul class="fee-list">' + feeHtml + "</ul>" +
+      "<div class=\"note\">Penyesuaian dari platform: <b>" + rp(m.penyesuaian) + "</b> &middot; Jumlah Penyelesaian Pembayaran resmi: <b>" + rp(m.penyelesaian) + "</b></div>" +
+      "</div>" +
+      '<div><h3 style="' + sectionTitle + '">Rincian Jenis Transaksi</h3>' +
+      '<ul class="fee-list">' + txHtml + "</ul>" +
+      '<div class="note">Baris dihitung per transaksi pencairan di bulan ini (basis Waktu Pembayaran) &mdash; "Retur / Refund" adalah baris "Pesanan" dengan Total Pendapatan negatif, bukan order yang dihitung dua kali.</div>' +
+      "</div>" +
+      '<div style="grid-column:1/-1;"><h3 style="' + sectionTitle + '">Kualitas Data</h3>' +
+      '<div class="quality-grid">' +
+      '<div class="quality-box"><div class="n">' + matchPct + '%</div><div class="l">Order ketemu di Data Pesanan</div><div class="bar"><span style="width:' + matchPct + '%"></span></div></div>' +
+      '<div class="quality-box"><div class="n">' + qtyPct + '%</div><div class="l">Qty ketemu Harga Modal</div><div class="bar"><span style="width:' + qtyPct + '%"></span></div></div>' +
+      "</div>" + noteUnmatched + noteEst +
+      "</div>" + archiveSection(m) +
+      "</div>";
+  }
+
+  // Arsip = hapus baris mentah Data Pencairan bulan ini (bagian terbesar dari ukuran data)
+  // sambil menyimpan PERMANEN ringkasan hasil hitungnya (objek `m` ini sendiri, sudah kecil --
+  // lihat archiveMonth()). Cuma bisa dilakukan kalau HPP-nya sudah final (hppComplete), dan cuma
+  // sekali per bulan (tombol hilang begitu m.archived true).
+  function archiveSection(m) {
+    var sectionTitle = "font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;";
+    if (m.archived) {
+      return '<div style="grid-column:1/-1;border-top:1px solid var(--line);padding-top:14px;">' +
+        '<span class="pill good">Diarsipkan</span> ' +
+        '<span class="note" style="display:inline;">Data mentah bulan ini sudah dihapus dari app untuk hemat kapasitas &mdash; yang tersisa cuma ringkasan angka di atas.</span>' +
+        "</div>";
+    }
+    if (!m.hppComplete) {
+      return '<div style="grid-column:1/-1;border-top:1px solid var(--line);padding-top:14px;">' +
+        '<h3 style="' + sectionTitle + '">Arsipkan bulan ini</h3>' +
+        '<div class="note">HPP bulan ini belum lengkap &mdash; lengkapi dulu (lihat catatan di atas) sebelum bisa diarsipkan.</div>' +
+        "</div>";
+    }
+    return '<div style="grid-column:1/-1;border-top:1px solid var(--line);padding-top:14px;">' +
+      '<h3 style="' + sectionTitle + '">Arsipkan bulan ini</h3>' +
+      '<div class="note">Simpan ringkasan angka bulan ini PERMANEN, lalu hapus baris mentah Data Pencairan bulan ini dari app supaya app tetap ringan. Pastikan sudah dicatat ke pembukuan kamu sendiri dulu &mdash; setelah diarsip, data mentahnya tidak bisa dihitung ulang lagi kecuali upload ulang CSV-nya.</div>' +
+      '<button class="btn small archive-month-btn" type="button" data-ym="' + m.ym + '" style="margin-top:8px;">Arsipkan ' + monthLabel(m.ym) + "</button>" +
+      "</div>";
+  }
+
+  function attachRowHandlers(months) {
+    var rows = document.querySelectorAll("table.months tbody tr[data-ym]");
+    rows.forEach(function (tr) {
+      tr.addEventListener("click", function () {
+        var ym = tr.getAttribute("data-ym");
+        expandedMonth = expandedMonth === ym ? null : ym;
+        renderDashboard();
+      });
+    });
+    document.querySelectorAll(".archive-month-btn").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation(); // jangan sampai trigger toggle expand/collapse baris di atasnya
+        archiveMonth(btn.getAttribute("data-ym"));
+      });
+    });
+  }
+
+  function archiveMonth(ym) {
+    var m = computeMonthly().filter(function (x) { return x.ym === ym; })[0];
+    if (!m || m.archived || !m.hppComplete) return;
+    var ok = confirm(
+      "Arsipkan " + monthLabel(ym) + "?\n\n" +
+      "Ringkasan angkanya akan disimpan permanen, tapi baris mentah Data Pencairan bulan ini akan DIHAPUS dari app. " +
+      "Ini tidak bisa dibatalkan (kecuali upload ulang CSV bulan ini dari awal).\n\n" +
+      "Pastikan sudah dicatat ke pembukuan kamu sendiri / sudah download cadangan sebelum lanjut."
+    );
+    if (!ok) return;
+    var snapshot = Object.assign({}, m);
+    delete snapshot.growth; // growth dihitung ulang tiap render dari urutan kronologis, bukan disimpan
+    snapshot.archived = true;
+    state.monthlyArchive.push(snapshot);
+    state.pencairanRows = state.pencairanRows.filter(function (r) {
+      var rym = toYearMonth(r[PROW.WPEMBAYARAN]) || toYearMonth(r[PROW.WPEMESANAN]) || "?";
+      return rym !== ym;
+    });
+    if (expandedMonth === ym) expandedMonth = null;
+    persist("Bulan " + monthLabel(ym) + " diarsipkan — data mentahnya sudah dihapus.");
+  }
+
+  /* ================= Persistence (GitHub Contents API) =================
+     State disimpan sebagai satu file JSON di sebuah repo GitHub privat, lewat REST API-nya
+     langsung (fetch() biasa, tanpa SDK -- tetap vanilla). Config (owner/repo/token/path)
+     TIDAK PERNAH ditulis ke file ini -- disimpan di localStorage browser saja, supaya
+     app.html sendiri aman dibagikan/dihosting publik tanpa membocorkan token. Lihat
+     README "Migrasi ke GitHub" untuk alasan desainnya. */
+  var GH_CONFIG_KEY = "ll_github_config_v1";
+
+  function getGithubConfig() {
+    try {
+      var raw = localStorage.getItem(GH_CONFIG_KEY);
+      if (!raw) return null;
+      var cfg = JSON.parse(raw);
+      if (!cfg.owner || !cfg.repo || !cfg.token || !cfg.path) return null;
+      return cfg;
+    } catch (e) { return null; }
+  }
+
+  function saveGithubConfig(cfg) {
+    localStorage.setItem(GH_CONFIG_KEY, JSON.stringify(cfg));
+  }
+
+  function clearGithubConfig() {
+    localStorage.removeItem(GH_CONFIG_KEY);
+  }
+
+  function githubContentsUrl(cfg) {
+    return "https://api.github.com/repos/" + encodeURIComponent(cfg.owner) + "/" + encodeURIComponent(cfg.repo) +
+      "/contents/" + cfg.path.split("/").map(encodeURIComponent).join("/");
+  }
+
+  function githubHeaders(cfg, accept) {
+    return { "Authorization": "Bearer " + cfg.token, "Accept": accept || "application/vnd.github+json" };
+  }
+
+  // UTF-8-safe base64, chunked supaya tidak nabrak limit argumen String.fromCharCode.apply
+  // di file besar (btoa() polos rusak untuk karakter di luar Latin1).
+  function utf8ToBase64(str) {
+    var bytes = new TextEncoder().encode(str);
+    var CHUNK = 0x8000, binary = "";
+    for (var i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    }
+    return btoa(binary);
+  }
+
+  // Ambil sha file saat ini (dibutuhkan GitHub untuk update) -- null kalau file belum ada.
+  async function githubGetSha(cfg) {
+    var res = await fetch(githubContentsUrl(cfg) + "?ref=" + encodeURIComponent(cfg.branch || "main"), {
+      headers: githubHeaders(cfg)
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error("Gagal cek file di GitHub (HTTP " + res.status + ").");
+    var json = await res.json();
+    return json.sha;
+  }
+
+  async function loadStateFromGithub(cfg) {
+    var res = await fetch(githubContentsUrl(cfg) + "?ref=" + encodeURIComponent(cfg.branch || "main"), {
+      headers: githubHeaders(cfg, "application/vnd.github.v3.raw")
+    });
+    if (res.status === 404) return freshDefaultState(); // belum pernah ada data tersimpan -- mulai kosong
+    if (res.status === 401 || res.status === 403) throw new Error("Token GitHub ditolak (kadaluarsa/salah scope). Cek Pengaturan Penyimpanan.");
+    if (!res.ok) throw new Error("Gagal memuat data dari GitHub (HTTP " + res.status + ").");
+    var text = await res.text();
+    try {
+      return Object.assign(freshDefaultState(), JSON.parse(text));
+    } catch (e) {
+      throw new Error("Isi file di GitHub bukan JSON yang valid.");
+    }
+  }
+
+  // Retry sekali kalau ada conflict (409) -- artinya ada tulisan lain nyelip di antara GET sha
+  // dan PUT ini (mis. 2 tab kebuka bersamaan). Ambil sha terbaru lalu coba sekali lagi.
+  async function saveStateToGithub(cfg, stateObj, attempt) {
+    var sha = await githubGetSha(cfg);
+    var body = {
+      message: "Update state " + new Date().toISOString(),
+      content: utf8ToBase64(JSON.stringify(stateObj)),
+      branch: cfg.branch || "main"
+    };
+    if (sha) body.sha = sha;
+    var res = await fetch(githubContentsUrl(cfg), {
+      method: "PUT",
+      headers: Object.assign(githubHeaders(cfg), { "Content-Type": "application/json" }),
+      body: JSON.stringify(body)
+    });
+    if (res.status === 409 && !attempt) return saveStateToGithub(cfg, stateObj, 1);
+    if (res.status === 401 || res.status === 403) throw new Error("Token GitHub ditolak (kadaluarsa/salah scope). Cek Pengaturan Penyimpanan.");
+    if (!res.ok) throw new Error("Gagal menyimpan ke GitHub (HTTP " + res.status + ").");
+  }
+
+  async function persist(toastMsg) {
+    render();
+    var cfg = getGithubConfig();
+    if (!cfg) { showToast("Belum ada Pengaturan Penyimpanan -- data belum tersimpan permanen."); return; }
+    try {
+      await saveStateToGithub(cfg, state);
+    } catch (e) {
+      console.error("Gagal menyimpan ke GitHub:", e);
+      showToast("Data terhitung, tapi gagal disimpan permanen: " + e.message);
+      return;
+    }
+    if (toastMsg) showToast(toastMsg);
+  }
+
+  function showToast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.className = "toast show";
+    clearTimeout(showToast._h);
+    showToast._h = setTimeout(function () { t.className = "toast"; }, 2600);
+  }
+
+  // Lewat platform downloads capability kalau dihosting sebagai Artifact (sandbox-nya blokir
+  // <a download> biasa -- lihat README "Persistensi data"), fallback ke blob-download biasa
+  // kalau dibuka sebagai file lokal.
+  async function downloadFile(filename, data, mimeType) {
+    var downloads = (window.claude && window.claude.use) ? await window.claude.use("downloads") : null;
+    if (downloads) { await downloads.save({ filename: filename, data: data }); return; }
+    var blob = new Blob([data], { type: mimeType || "text/plain" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /* ================= Wiring ================= */
+  function wireDropzone(inputId, handler, label, colsDef, requiredKeys) {
+    var input = document.getElementById(inputId);
+    input.addEventListener("change", async function (e) {
+      var files = Array.prototype.slice.call(e.target.files || []);
+      if (!files.length) return;
+      var okCount = 0, errMsgs = [];
+      for (var i = 0; i < files.length; i++) {
+        try {
+          var rows = await parseUploadedFile(files[i], colsDef, requiredKeys);
+          handler(rows, files[i].name);
+          okCount++;
+        } catch (err) {
+          errMsgs.push(files[i].name + ": " + err.message);
+        }
+      }
+      input.value = "";
+      if (okCount) await persist(okCount + " file " + label + " berhasil diproses.");
+      if (errMsgs.length) showToast("Gagal: " + errMsgs.join(" | "));
+    });
+  }
+
+  // Layar setup: field-nya TIDAK PERNAH ditulis ke app.html, cuma disimpan localStorage
+  // browser ini (lihat GH_CONFIG_KEY) -- jadi file app.html sendiri aman dibagikan/dihosting
+  // publik. errorMsg dipakai kalau boot gagal (token ditolak, dsb) supaya user bisa perbaiki.
+  function renderSetupScreen(errorMsg) {
+    var cfg = getGithubConfig() || {};
+    document.getElementById("upload-section").style.display = "none";
+    document.getElementById("dashboard").style.display = "none";
+    var el = document.getElementById("setup-screen");
+    el.style.display = "block";
+    el.innerHTML =
+      '<section><div class="section-head"><h2>Pengaturan Penyimpanan</h2>' +
+      '<span class="hint">Data disimpan di repo GitHub privat kamu sendiri</span></div>' +
+      '<div class="card" style="padding:20px;max-width:480px;">' +
+      (errorMsg ? '<div class="note" style="border:1px solid var(--danger);color:var(--danger);margin-bottom:14px;padding:8px 10px;border-radius:6px;">' + esc(errorMsg) + '</div>' : '') +
+      '<div class="field"><label>GitHub Username / Owner</label><input type="text" id="cfg-owner" value="' + esc(cfg.owner || "") + '" placeholder="mis. namakamu" /></div>' +
+      '<div class="field"><label>Nama Repository (privat)</label><input type="text" id="cfg-repo" value="' + esc(cfg.repo || "") + '" placeholder="mis. lapangan-ledger-data" /></div>' +
+      '<div class="field"><label>Personal Access Token</label><input type="password" id="cfg-token" value="' + esc(cfg.token || "") + '" placeholder="github_pat_..." /></div>' +
+      '<div class="field"><label>Nama file (path di repo)</label><input type="text" id="cfg-path" value="' + esc(cfg.path || "state.json") + '" placeholder="state.json" /></div>' +
+      '<button class="btn primary" id="btn-save-storage" type="button">Simpan &amp; Muat Data</button> ' +
+      (getGithubConfig() ? '<button class="btn ghost" id="btn-cancel-storage" type="button">Batal</button>' : '') +
+      '</div></section>';
+
+    document.getElementById("btn-save-storage").addEventListener("click", async function () {
+      var newCfg = {
+        owner: document.getElementById("cfg-owner").value.trim(),
+        repo: document.getElementById("cfg-repo").value.trim(),
+        token: document.getElementById("cfg-token").value.trim(),
+        path: document.getElementById("cfg-path").value.trim() || "state.json",
+        branch: "main"
+      };
+      if (!newCfg.owner || !newCfg.repo || !newCfg.token) { showToast("Isi Owner, Repo, dan Token dulu."); return; }
+      saveGithubConfig(newCfg);
+      await bootWithConfig(newCfg);
+    });
+    var cancelBtn = document.getElementById("btn-cancel-storage");
+    if (cancelBtn) cancelBtn.addEventListener("click", function () {
+      document.getElementById("setup-screen").style.display = "none";
+      document.getElementById("upload-section").style.display = "";
+      document.getElementById("dashboard").style.display = "";
+    });
+  }
+
+  // Muat state dari GitHub pakai config yang diberikan, lalu tampilkan dashboard normal.
+  // Dipanggil baik dari boot awal (init()) maupun setelah user simpan Pengaturan Penyimpanan.
+  async function bootWithConfig(cfg) {
+    try {
+      state = await loadStateFromGithub(cfg);
+    } catch (e) {
+      console.error("Gagal memuat dari GitHub:", e);
+      renderSetupScreen(e.message);
+      return;
+    }
+    document.getElementById("setup-screen").style.display = "none";
+    document.getElementById("upload-section").style.display = "";
+    document.getElementById("dashboard").style.display = "";
+    render();
+  }
+
+  function initDragVisuals() {
+    ["dz-pencairan", "dz-pesanan", "dz-modal"].forEach(function (id) {
+      var el = document.getElementById(id);
+      ["dragenter", "dragover"].forEach(function (evt) {
+        el.addEventListener(evt, function (e) { e.preventDefault(); el.classList.add("drag-over"); });
+      });
+      ["dragleave", "drop"].forEach(function (evt) {
+        el.addEventListener(evt, function (e) { el.classList.remove("drag-over"); });
+      });
+    });
+  }
+
+  async function init() {
+    state = freshDefaultState();
+    wireDropzone("file-pencairan", processPencairan, "Data Pencairan", PENCAIRAN_COLS, ["ID", "JENIS", "WPEMBAYARAN", "PENDAPATAN"]);
+    wireDropzone("file-pesanan", processPesanan, "Data Pesanan", PESANAN_COLS, ["ORDER", "SKU", "QTY"]);
+    wireDropzone("file-modal", processModal, "Harga Modal", MODAL_COLS, ["SKU", "HARGA"]);
+    initDragVisuals();
+
+    document.getElementById("help-toggle").addEventListener("click", function () {
+      document.getElementById("help-body").classList.toggle("open");
+    });
+
+    document.getElementById("btn-reset").addEventListener("click", function () {
+      if (!confirm("Hapus semua data yang tersimpan di halaman ini? Tindakan ini tidak bisa dibatalkan.")) return;
+      state = freshDefaultState();
+      persist("Semua data direset.");
+    });
+
+    document.getElementById("btn-export").addEventListener("click", async function () {
+      await downloadFile("lapangan-ledger-backup.json", JSON.stringify(state, null, 2), "application/json");
+    });
+
+    document.getElementById("btn-import").addEventListener("click", function () {
+      document.getElementById("file-import").click();
+    });
+    document.getElementById("file-import").addEventListener("change", async function (e) {
+      var file = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (!file) return;
+      try {
+        var text = await readFile(file);
+        var parsed = JSON.parse(text);
+        if (!parsed || typeof parsed !== "object" || !("pencairanRows" in parsed)) {
+          throw new Error("Format file tidak dikenali (bukan file cadangan Lapangan Ledger).");
+        }
+        var hasCurrentData = state.pencairanRows.length || Object.keys(state.orderMaster).length;
+        if (hasCurrentData && !confirm("Ini akan MENGGANTI semua data yang sedang ada di halaman ini dengan isi file cadangan. Lanjutkan?")) return;
+        state = Object.assign(freshDefaultState(), parsed);
+        persist("Cadangan berhasil dimuat.");
+      } catch (err) {
+        showToast("Gagal memuat cadangan: " + err.message);
+      }
+    });
+
+    document.getElementById("btn-storage-settings").addEventListener("click", function () {
+      renderSetupScreen();
+    });
+
+    var cfg = getGithubConfig();
+    if (!cfg) {
+      renderSetupScreen();
+    } else {
+      await bootWithConfig(cfg);
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>
