@@ -1047,9 +1047,12 @@
       var ym = toYearMonth(r[PROW.WPEMBAYARAN]) || toYearMonth(r[PROW.WPEMESANAN]) || "?";
       var m = bucket(ym);
       m.rows++;
-      m.grossSales += r[PROW.GROSS_SALES];
-      m.salesDiscount += r[PROW.SALES_DISCOUNT];
-      m.salesReturn += r[PROW.SALES_RETURN];
+      // (r[...] || 0) -- baris mentah yang tersimpan SEBELUM 3 kolom ini ada belum punya
+      // index ini sama sekali (undefined, bukan 0), jadi tanpa fallback ini `undefined + 0`
+      // langsung merambat jadi NaN ke Net Sales/Gross Profit/Operating Profit di seluruh app.
+      m.grossSales += r[PROW.GROSS_SALES] || 0;
+      m.salesDiscount += r[PROW.SALES_DISCOUNT] || 0;
+      m.salesReturn += r[PROW.SALES_RETURN] || 0;
       m.biayaTotal += r[PROW.BIAYA_TOTAL];
       m.fees.komisiPlatform += r[PROW.KOMISI_PLATFORM];
       m.fees.komisiDinamis += r[PROW.KOMISI_DINAMIS];
