@@ -312,28 +312,31 @@
         <div class="status-line" id="status-pesanan"></div>
       </div>
     </div>
-    <div class="card" style="padding: 14px 18px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div>
-          <h3 style="font-size:14.5px;">Harga Modal SKU</h3>
-          <div class="status-line" id="status-modal" style="margin-top:2px;"></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <button class="icon-btn" id="help-toggle" type="button" title="Kolom apa saja yang dibutuhkan tiap file?" aria-label="Bantuan kolom file">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-          </button>
-          <button class="icon-btn" id="log-toggle" type="button" title="Lihat riwayat upload" aria-label="Riwayat upload">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-          </button>
-          <button class="help-toggle" id="modal-toggle" type="button">Kelola Harga Modal SKU</button>
-        </div>
+    <div class="card" style="padding:0;">
+      <div class="dropzone" id="modal-toggle" role="button" tabindex="0" aria-expanded="false" style="cursor:pointer;">
+        <span class="dz-icon">M</span>
+        <h3>Harga Modal SKU</h3>
+        <p>Daftar ID SKU + harga modal per unit. Klik untuk kelola atau upload file baru.</p>
+        <div class="status-line" id="status-modal"></div>
       </div>
-      <div class="help-body" id="modal-body">
-        <div class="dropzone" id="dz-modal" style="position:relative;border:none;padding:12px 0 0;">
+      <div class="help-body" id="modal-body" style="margin:0;padding:0 18px 18px;">
+        <div class="dropzone" id="dz-modal" style="position:relative;">
           <input type="file" id="file-modal" accept=".csv,.xlsx" />
-          <p>Upload file dengan kolom <code>ID SKU</code> dan <code>Harga Modal</code>. Boleh diupload ulang kapan saja untuk menambah SKU baru atau update harga yang sudah ada.</p>
+          <span class="dz-icon">&uarr;</span>
+          <h3>Upload Harga Modal SKU</h3>
+          <p>File dengan kolom <code>ID SKU</code> dan <code>Harga Modal</code>. Boleh diupload ulang kapan saja untuk menambah SKU baru atau update harga yang sudah ada.</p>
         </div>
         <div id="modal-conflicts"></div>
+      </div>
+    </div>
+    <div class="card" style="padding: 10px 18px;">
+      <div style="display:flex;justify-content:flex-end;gap:6px;">
+        <button class="icon-btn" id="help-toggle" type="button" title="Kolom apa saja yang dibutuhkan tiap file?" aria-label="Bantuan kolom file">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        </button>
+        <button class="icon-btn" id="log-toggle" type="button" title="Lihat riwayat upload" aria-label="Riwayat upload">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </button>
       </div>
       <div class="help-body" id="help-body">
         <p><b>Data Pencairan</b> (CSV dari sheet "Detail pesanan" pada laporan income) &mdash; wajib ada kolom:
@@ -1862,8 +1865,14 @@
       document.getElementById("help-body").classList.toggle("open");
       this.classList.toggle("active");
     });
-    document.getElementById("modal-toggle").addEventListener("click", function () {
-      document.getElementById("modal-body").classList.toggle("open");
+    var modalToggle = document.getElementById("modal-toggle");
+    function toggleModalBody() {
+      var open = document.getElementById("modal-body").classList.toggle("open");
+      modalToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    modalToggle.addEventListener("click", toggleModalBody);
+    modalToggle.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleModalBody(); }
     });
     document.getElementById("log-toggle").addEventListener("click", function () {
       document.getElementById("log-body").classList.toggle("open");
