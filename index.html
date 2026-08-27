@@ -290,6 +290,8 @@
     </div>
   </header>
 
+  <div id="store-tabs" style="display:flex;gap:8px;margin-bottom:18px;"></div>
+
   <div id="setup-screen" style="display:none;"></div>
 
   <section id="upload-section">
@@ -351,7 +353,20 @@
 (function () {
   "use strict";
 
-  /* ================= State ================= */
+  /* ================= State =================
+     Multi-toko (opsi B): satu file `state.json` di GitHub menyimpan SEMUA toko sekaligus,
+     dalam bentuk { activeStore, stores: { <storeId>: <state per-toko> } }. Variabel `root`
+     memegang objek gabungan ini; variabel `state` (dipakai di seluruh fungsi lain, tidak
+     berubah sama sekali) selalu menunjuk ke `root.stores[root.activeStore]` -- jadi
+     computeMonthly/processPencairan/dst tidak perlu tahu soal multi-toko sama sekali,
+     mereka cuma baca/tulis `state` seperti sebelumnya. Pindah toko = ganti `state` ke objek
+     toko lain lalu render ulang. */
+  var STORE_DEFS = [
+    { id: "bumee-bola", name: "Bumee Bola" },
+    { id: "bumee-sport", name: "Bumee Sport" },
+    { id: "bumee-bola-shopee", name: "Bumee Bola (Shopee)" }
+  ];
+
   var DEFAULT_STATE = {
     orderMaster: {},      // orderId -> [[sku, qty], ...]
     skuNames: {},         // sku -> product name
@@ -360,10 +375,31 @@
     uploads: [],          // {t, label, fileName, rows}
     monthlyArchive: []    // [{ym, archived:true, ...semua field hasil computeMonthly()}] -- lihat archiveMonth()
   };
-  var state = null;
+  var root = null;  // { activeStore, stores: { id: stateObj, ... } }
+  var state = null; // = root.stores[root.activeStore]
 
   function freshDefaultState() {
     return JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }
+
+  function freshDefaultRoot() {
+    var stores = {};
+    STORE_DEFS.forEach(function (s) { stores[s.id] = freshDefaultState(); });
+    return { activeStore: STORE_DEFS[0].id, stores: stores };
+  }
+
+  function storeName(id) {
+    var def = STORE_DEFS.filter(function (s) { return s.id === id; })[0];
+    return def ? def.name : id;
+  }
+
+  // Pindah toko aktif: ganti pointer `state`, render ulang, simpan preferensi toko aktif.
+  function switchStore(id) {
+    if (!root.stores[id]) return;
+    root.activeStore = id;
+    state = root.stores[id];
+    expandedMonth = null;
+    persist();
   }
 
   /* Data Pencairan compact row layout */
@@ -1135,10 +1171,26 @@
   var expandedMonth = null;
 
   function render() {
+    renderStoreTabs();
     renderUploadStatus();
     renderLog();
     renderDashboard();
     renderFooter();
+  }
+
+  function renderStoreTabs() {
+    var el = document.getElementById("store-tabs");
+    if (!el) return;
+    el.innerHTML = STORE_DEFS.map(function (s) {
+      var active = s.id === root.activeStore;
+      return '<button class="btn small store-tab' + (active ? " primary" : "") + '" type="button" data-store="' + esc(s.id) + '">' + esc(s.name) + "</button>";
+    }).join("");
+    el.querySelectorAll(".store-tab").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-store");
+        if (id !== root.activeStore) switchStore(id);
+      });
+    });
   }
 
   function renderUploadStatus() {
@@ -1166,8 +1218,9 @@
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 
   function renderFooter() {
-    document.getElementById("footer-stats").textContent =
-      state.pencairanRows.length ? state.pencairanRows.length.toLocaleString("id-ID") + " baris pencairan tersimpan" : "";
+    var storeLabel = "Toko aktif: " + storeName(root.activeStore);
+    document.getElementById("footer-stats").textContent = storeLabel +
+      (state.pencairanRows.length ? " · " + state.pencairanRows.length.toLocaleString("id-ID") + " baris pencairan tersimpan" : "");
   }
 
   function renderDashboard() {
@@ -1566,16 +1619,38 @@
     return json.sha;
   }
 
+  // Terima 3 kemungkinan bentuk file di GitHub: (1) belum ada sama sekali -> root kosong baru,
+  // (2) sudah format multi-toko { activeStore, stores:{...} } -> pakai apa adanya (dengan
+  // default toko yang belum ada), (3) format LAMA single-toko (langsung { pencairanRows, ... })
+  // dari sebelum fitur multi-toko ada -- data itu dianggap milik toko pertama (STORE_DEFS[0])
+  // supaya tidak ada data lama yang hilang saat upgrade.
+  function normalizeToRoot(parsed) {
+    var freshRoot = freshDefaultRoot();
+    if (parsed && typeof parsed === "object" && parsed.stores && typeof parsed.stores === "object") {
+      var stores = {};
+      STORE_DEFS.forEach(function (s) {
+        stores[s.id] = Object.assign(freshDefaultState(), parsed.stores[s.id] || {});
+      });
+      var activeStore = STORE_DEFS.some(function (s) { return s.id === parsed.activeStore; }) ? parsed.activeStore : STORE_DEFS[0].id;
+      return { activeStore: activeStore, stores: stores };
+    }
+    if (parsed && typeof parsed === "object" && "pencairanRows" in parsed) {
+      freshRoot.stores[STORE_DEFS[0].id] = Object.assign(freshDefaultState(), parsed);
+      return freshRoot;
+    }
+    return freshRoot;
+  }
+
   async function loadStateFromGithub(cfg) {
     var res = await fetch(githubContentsUrl(cfg) + "?ref=" + encodeURIComponent(cfg.branch || "main"), {
       headers: githubHeaders(cfg, "application/vnd.github.v3.raw"), cache: "no-store"
     });
-    if (res.status === 404) return freshDefaultState(); // belum pernah ada data tersimpan -- mulai kosong
+    if (res.status === 404) return freshDefaultRoot(); // belum pernah ada data tersimpan -- mulai kosong
     if (res.status === 401 || res.status === 403) throw new Error("Token GitHub ditolak (kadaluarsa/salah scope). Cek Pengaturan Penyimpanan.");
     if (!res.ok) throw new Error("Gagal memuat data dari GitHub (HTTP " + res.status + ").");
     var text = await res.text();
     try {
-      return Object.assign(freshDefaultState(), JSON.parse(text));
+      return normalizeToRoot(JSON.parse(text));
     } catch (e) {
       throw new Error("Isi file di GitHub bukan JSON yang valid.");
     }
@@ -1618,8 +1693,9 @@
     render();
     var cfg = getGithubConfig();
     if (!cfg) { showToast("Belum ada Pengaturan Penyimpanan -- data belum tersimpan permanen."); return; }
-    var stateSnapshot = state; // ambil sekarang -- kalau ada perubahan lain menyusul sebelum
-                                // giliran ini jalan, itu di-persist terpisah oleh panggilan lain
+    var stateSnapshot = root; // seluruh root (semua toko) yang disimpan -- ambil sekarang, kalau
+                               // ada perubahan lain menyusul sebelum giliran ini jalan, itu
+                               // di-persist terpisah oleh panggilan lain (lihat persistQueue)
     var task = persistQueue.then(function () { return saveStateToGithub(cfg, stateSnapshot); });
     persistQueue = task.catch(function () {}); // 1 kegagalan tidak boleh menyumbat antrean berikutnya
     try {
@@ -1681,6 +1757,7 @@
   // publik. errorMsg dipakai kalau boot gagal (token ditolak, dsb) supaya user bisa perbaiki.
   function renderSetupScreen(errorMsg) {
     var cfg = getGithubConfig() || {};
+    document.getElementById("store-tabs").style.display = "none";
     document.getElementById("upload-section").style.display = "none";
     document.getElementById("dashboard").style.display = "none";
     var el = document.getElementById("setup-screen");
@@ -1713,6 +1790,7 @@
     var cancelBtn = document.getElementById("btn-cancel-storage");
     if (cancelBtn) cancelBtn.addEventListener("click", function () {
       document.getElementById("setup-screen").style.display = "none";
+      document.getElementById("store-tabs").style.display = "";
       document.getElementById("upload-section").style.display = "";
       document.getElementById("dashboard").style.display = "";
     });
@@ -1722,13 +1800,15 @@
   // Dipanggil baik dari boot awal (init()) maupun setelah user simpan Pengaturan Penyimpanan.
   async function bootWithConfig(cfg) {
     try {
-      state = await loadStateFromGithub(cfg);
+      root = await loadStateFromGithub(cfg);
+      state = root.stores[root.activeStore];
     } catch (e) {
       console.error("Gagal memuat dari GitHub:", e);
       renderSetupScreen(e.message);
       return;
     }
     document.getElementById("setup-screen").style.display = "none";
+    document.getElementById("store-tabs").style.display = "";
     document.getElementById("upload-section").style.display = "";
     document.getElementById("dashboard").style.display = "";
     render();
@@ -1747,7 +1827,8 @@
   }
 
   async function init() {
-    state = freshDefaultState();
+    root = freshDefaultRoot();
+    state = root.stores[root.activeStore];
     wireDropzone("file-pencairan", processPencairan, "Data Pencairan", PENCAIRAN_COLS, ["ID", "JENIS", "WPEMBAYARAN", "PENDAPATAN"]);
     wireDropzone("file-pesanan", processPesanan, "Data Pesanan", PESANAN_COLS, ["ORDER", "SKU", "QTY"]);
     wireDropzone("file-modal", processModal, "Harga Modal", MODAL_COLS, ["SKU", "HARGA"]);
@@ -1758,13 +1839,16 @@
     });
 
     document.getElementById("btn-reset").addEventListener("click", function () {
-      if (!confirm("Hapus semua data yang tersimpan di halaman ini? Tindakan ini tidak bisa dibatalkan.")) return;
+      if (!confirm("Hapus semua data toko \"" + storeName(root.activeStore) + "\" yang tersimpan? Toko lain tidak terpengaruh. Tindakan ini tidak bisa dibatalkan.")) return;
       state = freshDefaultState();
-      persist("Semua data direset.");
+      root.stores[root.activeStore] = state;
+      persist("Data toko " + storeName(root.activeStore) + " direset.");
     });
 
+    // Backup selalu mencakup SEMUA toko sekaligus (bentuknya sama persis dengan `root` yang
+    // disimpan ke GitHub) supaya satu file cadangan bisa memulihkan semuanya.
     document.getElementById("btn-export").addEventListener("click", async function () {
-      await downloadFile("lapangan-ledger-backup.json", JSON.stringify(state, null, 2), "application/json");
+      await downloadFile("lapangan-ledger-backup.json", JSON.stringify(root, null, 2), "application/json");
     });
 
     document.getElementById("btn-import").addEventListener("click", function () {
@@ -1777,12 +1861,26 @@
       try {
         var text = await readFile(file);
         var parsed = JSON.parse(text);
-        if (!parsed || typeof parsed !== "object" || !("pencairanRows" in parsed)) {
+        var isMultiStore = parsed && typeof parsed === "object" && parsed.stores && typeof parsed.stores === "object";
+        var isLegacySingleStore = parsed && typeof parsed === "object" && "pencairanRows" in parsed;
+        if (!isMultiStore && !isLegacySingleStore) {
           throw new Error("Format file tidak dikenali (bukan file cadangan Lapangan Ledger).");
         }
-        var hasCurrentData = state.pencairanRows.length || Object.keys(state.orderMaster).length;
-        if (hasCurrentData && !confirm("Ini akan MENGGANTI semua data yang sedang ada di halaman ini dengan isi file cadangan. Lanjutkan?")) return;
-        state = Object.assign(freshDefaultState(), parsed);
+        var hasCurrentData = Object.keys(root.stores).some(function (id) {
+          var s = root.stores[id];
+          return s.pencairanRows.length || Object.keys(s.orderMaster).length;
+        });
+        var warnMsg = isMultiStore
+          ? "Ini akan MENGGANTI data SEMUA TOKO yang sedang ada dengan isi file cadangan. Lanjutkan?"
+          : "Ini akan MENGGANTI data toko \"" + storeName(root.activeStore) + "\" saja dengan isi file cadangan (format lama, 1 toko). Lanjutkan?";
+        if (hasCurrentData && !confirm(warnMsg)) return;
+        if (isMultiStore) {
+          root = normalizeToRoot(parsed);
+          state = root.stores[root.activeStore];
+        } else {
+          state = Object.assign(freshDefaultState(), parsed);
+          root.stores[root.activeStore] = state;
+        }
         persist("Cadangan berhasil dimuat.");
       } catch (err) {
         showToast("Gagal memuat cadangan: " + err.message);
