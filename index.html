@@ -312,31 +312,30 @@
         <div class="status-line" id="status-pesanan"></div>
       </div>
     </div>
-    <div class="card" style="padding:0;">
-      <div class="dropzone" id="modal-toggle" role="button" tabindex="0" aria-expanded="false" style="cursor:pointer;">
-        <span class="dz-icon">M</span>
-        <h3>Harga Modal SKU</h3>
-        <p>Daftar ID SKU + harga modal per unit. Klik untuk kelola atau upload file baru.</p>
-        <div class="status-line" id="status-modal"></div>
+    <div class="card" style="padding: 14px 18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div id="modal-toggle" role="button" tabindex="0" aria-expanded="false" style="cursor:pointer;display:flex;align-items:baseline;gap:8px;">
+          <h3 style="font-size:14.5px;">Harga Modal SKU</h3>
+          <div id="status-modal" style="font-size:12.5px;color:var(--ink-faint);"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="icon-btn" id="help-toggle" type="button" title="Kolom apa saja yang dibutuhkan tiap file?" aria-label="Bantuan kolom file">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          </button>
+          <button class="icon-btn" id="log-toggle" type="button" title="Lihat riwayat upload" aria-label="Riwayat upload">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          </button>
+        </div>
       </div>
-      <div class="help-body" id="modal-body" style="margin:0;padding:0 18px 18px;">
-        <div class="dropzone" id="dz-modal" style="position:relative;">
+      <div class="help-body" id="modal-body">
+        <div class="dropzone" id="dz-modal" style="position:relative;border:none;padding:12px 0 0;flex-direction:row;align-items:center;gap:10px;">
           <input type="file" id="file-modal" accept=".csv,.xlsx" />
-          <span class="dz-icon">&uarr;</span>
-          <h3>Upload Harga Modal SKU</h3>
-          <p>File dengan kolom <code>ID SKU</code> dan <code>Harga Modal</code>. Boleh diupload ulang kapan saja untuk menambah SKU baru atau update harga yang sudah ada.</p>
+          <span class="icon-btn" style="cursor:pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          </span>
+          <p style="margin:0;">Upload file dengan kolom <code>ID SKU</code> dan <code>Harga Modal</code>. Boleh diupload ulang kapan saja untuk menambah SKU baru atau update harga yang sudah ada.</p>
         </div>
         <div id="modal-conflicts"></div>
-      </div>
-    </div>
-    <div class="card" style="padding: 10px 18px;">
-      <div style="display:flex;justify-content:flex-end;gap:6px;">
-        <button class="icon-btn" id="help-toggle" type="button" title="Kolom apa saja yang dibutuhkan tiap file?" aria-label="Bantuan kolom file">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-        </button>
-        <button class="icon-btn" id="log-toggle" type="button" title="Lihat riwayat upload" aria-label="Riwayat upload">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        </button>
       </div>
       <div class="help-body" id="help-body">
         <p><b>Data Pencairan</b> (CSV dari sheet "Detail pesanan" pada laporan income) &mdash; wajib ada kolom:
@@ -1241,8 +1240,7 @@
     document.getElementById("status-pencairan").className = "status-line" + (pCount ? " ok" : "");
     document.getElementById("status-pesanan").textContent = oCount ? oCount.toLocaleString("id-ID") + " order dikenal" : "";
     document.getElementById("status-pesanan").className = "status-line" + (oCount ? " ok" : "");
-    document.getElementById("status-modal").textContent = mCount ? mCount.toLocaleString("id-ID") + " SKU punya harga modal" : "";
-    document.getElementById("status-modal").className = "status-line" + (mCount ? " ok" : "");
+    document.getElementById("status-modal").textContent = mCount ? mCount.toLocaleString("id-ID") + " SKU sudah punya harga modal" : "";
   }
 
   function renderLog() {
