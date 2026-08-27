@@ -1554,9 +1554,11 @@
   }
 
   // Ambil sha file saat ini (dibutuhkan GitHub untuk update) -- null kalau file belum ada.
+  // cache:"no-store" penting -- tanpa ini browser bisa nyajiin GET lama dari cache-nya sendiri,
+  // bikin sha yang didapat selalu basi walau sudah retry berkali-kali (409 tidak pernah sembuh).
   async function githubGetSha(cfg) {
     var res = await fetch(githubContentsUrl(cfg) + "?ref=" + encodeURIComponent(cfg.branch || "main"), {
-      headers: githubHeaders(cfg)
+      headers: githubHeaders(cfg), cache: "no-store"
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error("Gagal cek file di GitHub (HTTP " + res.status + ").");
@@ -1566,7 +1568,7 @@
 
   async function loadStateFromGithub(cfg) {
     var res = await fetch(githubContentsUrl(cfg) + "?ref=" + encodeURIComponent(cfg.branch || "main"), {
-      headers: githubHeaders(cfg, "application/vnd.github.v3.raw")
+      headers: githubHeaders(cfg, "application/vnd.github.v3.raw"), cache: "no-store"
     });
     if (res.status === 404) return freshDefaultState(); // belum pernah ada data tersimpan -- mulai kosong
     if (res.status === 401 || res.status === 403) throw new Error("Token GitHub ditolak (kadaluarsa/salah scope). Cek Pengaturan Penyimpanan.");
@@ -1579,9 +1581,12 @@
     }
   }
 
-  // Retry sekali kalau ada conflict (409) -- artinya ada tulisan lain nyelip di antara GET sha
-  // dan PUT ini (mis. 2 tab kebuka bersamaan). Ambil sha terbaru lalu coba sekali lagi.
+  // Retry dengan backoff kalau ada conflict (409) -- artinya ada tulisan lain nyelip di antara
+  // GET sha dan PUT ini. Beberapa kali percobaan (bukan cuma sekali) karena race yang nyata
+  // (mis. 2+ dropzone diisi hampir bersamaan, tiap satu manggil persist() sendiri-sendiri) bisa
+  // butuh lebih dari 1 kali coba ulang sebelum akhirnya dapat giliran nulis dengan sha terbaru.
   async function saveStateToGithub(cfg, stateObj, attempt) {
+    attempt = attempt || 0;
     var sha = await githubGetSha(cfg);
     var body = {
       message: "Update state " + new Date().toISOString(),
@@ -1594,17 +1599,31 @@
       headers: Object.assign(githubHeaders(cfg), { "Content-Type": "application/json" }),
       body: JSON.stringify(body)
     });
-    if (res.status === 409 && !attempt) return saveStateToGithub(cfg, stateObj, 1);
+    if (res.status === 409 && attempt < 5) {
+      await new Promise(function (resolve) { setTimeout(resolve, 150 * (attempt + 1)); });
+      return saveStateToGithub(cfg, stateObj, attempt + 1);
+    }
     if (res.status === 401 || res.status === 403) throw new Error("Token GitHub ditolak (kadaluarsa/salah scope). Cek Pengaturan Penyimpanan.");
     if (!res.ok) throw new Error("Gagal menyimpan ke GitHub (HTTP " + res.status + ").");
   }
+
+  // Antrean supaya persist() yang dipanggil hampir bersamaan (mis. upload ke beberapa dropzone
+  // sekaligus, masing-masing punya handler async sendiri) TIDAK saling balapan baca-sha-lalu-tulis
+  // ke file yang sama -- itu penyebab utama 409 berulang, bukan cuma soal retry kurang banyak.
+  // Setiap persist() antre di belakang yang sebelumnya, jadi cuma 1 PUT yang benar-benar jalan
+  // dalam satu waktu.
+  var persistQueue = Promise.resolve();
 
   async function persist(toastMsg) {
     render();
     var cfg = getGithubConfig();
     if (!cfg) { showToast("Belum ada Pengaturan Penyimpanan -- data belum tersimpan permanen."); return; }
+    var stateSnapshot = state; // ambil sekarang -- kalau ada perubahan lain menyusul sebelum
+                                // giliran ini jalan, itu di-persist terpisah oleh panggilan lain
+    var task = persistQueue.then(function () { return saveStateToGithub(cfg, stateSnapshot); });
+    persistQueue = task.catch(function () {}); // 1 kegagalan tidak boleh menyumbat antrean berikutnya
     try {
-      await saveStateToGithub(cfg, state);
+      await task;
     } catch (e) {
       console.error("Gagal menyimpan ke GitHub:", e);
       showToast("Data terhitung, tapi gagal disimpan permanen: " + e.message);
