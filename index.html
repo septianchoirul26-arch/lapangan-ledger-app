@@ -871,10 +871,16 @@
     });
     if (missing.length) throw new Error("Kolom wajib tidak ditemukan: " + missing.join(", "));
 
-    var existingKeys = {};
-    state.pencairanRows.forEach(function (r) { existingKeys[rowKey(r)] = true; });
+    // key -> index di state.pencairanRows (bukan cuma `true`) -- supaya baris yang "sama"
+    // (ID+Jenis+tanggal+Pendapatan+Penyelesaian identik) di-upload ulang bisa DIPERBARUI
+    // (ganti isi barisnya dengan hasil parse terbaru), bukan cuma dilewati. Ini penting kalau
+    // suatu saat ada kolom baru ditambahkan ke parser (lihat GROSS_SALES/SALES_DISCOUNT/
+    // SALES_RETURN) -- tanpa ini, "upload ulang file yang sama" tidak akan pernah mengisi
+    // kolom baru itu ke baris yang sudah kadung tersimpan sebelum kolom itu ada.
+    var existingIndex = {};
+    state.pencairanRows.forEach(function (r, i) { existingIndex[rowKey(r)] = i; });
 
-    var added = 0, skipped = 0;
+    var added = 0, updated = 0, skipped = 0;
     for (var i = 1; i < rows.length; i++) {
       var raw = rows[i];
       if (!raw || !raw.length || (raw.length === 1 && raw[0].trim() === "")) continue;
@@ -905,13 +911,20 @@
       r[PROW.SALES_RETURN] = toNumber(get("SALES_RETURN"));
 
       var key = rowKey(r);
-      if (existingKeys[key]) { skipped++; continue; }
-      existingKeys[key] = true;
+      if (existingIndex.hasOwnProperty(key)) {
+        state.pencairanRows[existingIndex[key]] = r; // refresh -- lihat catatan existingIndex di atas
+        updated++;
+        continue;
+      }
+      existingIndex[key] = state.pencairanRows.length;
       state.pencairanRows.push(r);
       added++;
     }
-    logUpload("Data Pencairan", fileName, added, skipped ? (skipped + " baris duplikat dilewati") : "");
-    return { added: added, skipped: skipped };
+    var extra = [];
+    if (updated) extra.push(updated + " baris diperbarui");
+    if (skipped) extra.push(skipped + " baris dilewati (ID kosong)");
+    logUpload("Data Pencairan", fileName, added, extra.join(", "));
+    return { added: added, updated: updated, skipped: skipped };
   }
 
   var PESANAN_COLS = {
