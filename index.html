@@ -249,6 +249,19 @@
   }
   .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
   .icon-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .icon-btn.lg { width: 30px; height: 30px; }
+
+  .dropdown-menu {
+    display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px;
+    box-shadow: var(--shadow); padding: 4px; min-width: 170px; flex-direction: column; gap: 2px;
+  }
+  .dropdown-menu.open { display: flex; }
+  .dropdown-menu button {
+    appearance: none; border: none; background: none; text-align: left; padding: 8px 10px;
+    border-radius: 6px; font-size: 13px; font-family: var(--body); color: var(--ink); cursor: pointer;
+  }
+  .dropdown-menu button:hover { background: var(--accent-soft); color: var(--accent); }
   .help-body { margin-top: 10px; font-size: 12.5px; color: var(--ink-muted); display: none; }
   .help-body.open { display: block; }
   .help-body code { background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 11.5px; color: var(--ink); }
@@ -279,12 +292,25 @@
       </div>
     </div>
     <div class="actions">
-      <button class="btn" id="btn-export">Unduh cadangan</button>
-      <button class="btn ghost" id="btn-export-xlsx">Export XLSX</button>
-      <button class="btn ghost" id="btn-import">Unggah cadangan</button>
+      <div style="position:relative;">
+        <button class="icon-btn lg" id="btn-backup-toggle" type="button" title="Cadangan (download/upload)" aria-label="Cadangan">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+        </button>
+        <div class="dropdown-menu" id="backup-menu">
+          <button type="button" id="btn-export">Download Cadangan</button>
+          <button type="button" id="btn-import">Upload Cadangan</button>
+        </div>
+      </div>
       <input type="file" id="file-import" accept=".json" style="display:none" />
-      <button class="btn ghost" id="btn-reset">Reset data</button>
-      <button class="btn ghost" id="btn-storage-settings">Pengaturan Penyimpanan</button>
+      <button class="icon-btn lg" id="btn-export-xlsx" type="button" title="Export XLSX" aria-label="Export XLSX">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      </button>
+      <button class="icon-btn lg" id="btn-reset" type="button" title="Reset data" aria-label="Reset data">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+      </button>
+      <button class="icon-btn lg" id="btn-storage-settings" type="button" title="Pengaturan Penyimpanan" aria-label="Pengaturan Penyimpanan">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
     </div>
   </header>
 
@@ -2361,9 +2387,25 @@
       persist("Data toko " + storeName(root.activeStore) + " direset.");
     });
 
+    // Tombol Download/Upload Cadangan digabung di balik 1 ikon (dropdown kecil) supaya header
+    // tidak penuh tombol teks -- lihat #backup-menu di HTML. Tutup dropdown kalau klik di luar
+    // area itu, atau begitu salah satu pilihan di dalamnya diklik.
+    var backupToggle = document.getElementById("btn-backup-toggle");
+    var backupMenu = document.getElementById("backup-menu");
+    backupToggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      backupMenu.classList.toggle("open");
+    });
+    document.addEventListener("click", function (e) {
+      if (backupMenu.classList.contains("open") && !backupMenu.contains(e.target) && e.target !== backupToggle) {
+        backupMenu.classList.remove("open");
+      }
+    });
+
     // Backup selalu mencakup SEMUA toko sekaligus (bentuknya sama persis dengan `root` yang
     // disimpan ke GitHub) supaya satu file cadangan bisa memulihkan semuanya.
     document.getElementById("btn-export").addEventListener("click", async function () {
+      backupMenu.classList.remove("open");
       await downloadFile("lapangan-ledger-backup.json", JSON.stringify(root, null, 2), "application/json");
     });
 
@@ -2377,6 +2419,7 @@
     });
 
     document.getElementById("btn-import").addEventListener("click", function () {
+      backupMenu.classList.remove("open");
       document.getElementById("file-import").click();
     });
     document.getElementById("file-import").addEventListener("change", async function (e) {
