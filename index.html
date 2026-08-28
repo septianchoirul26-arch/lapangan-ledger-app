@@ -1632,6 +1632,11 @@
       });
     });
     list.sort(function (a, b) { return a.ym < b.ym ? -1 : 1; });
+    // Basis Akrual baru mulai dipakai dari Januari 2026 -- bulan sebelumnya (Okt-Des 2025) ikut
+    // ketarik karena order dibuat di situ, tapi tidak relevan ditampilkan (bukan periode yang
+    // sebenarnya mau dipantau, cuma "kebawa" karena Data Pesanan-nya diupload sekaligus 4 bulan).
+    var ACCRUAL_START_YM = "2026-01";
+    list = list.filter(function (m) { return m.ym >= ACCRUAL_START_YM; });
 
     function growthPct(curr, prev) {
       if (curr == null || prev == null || !prev) return null;
