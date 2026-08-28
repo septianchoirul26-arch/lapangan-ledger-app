@@ -173,6 +173,7 @@
   table.months th {
     text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--ink-faint); font-weight: 600; padding: 9px 12px; border-bottom: 1px solid var(--line-strong);
+    white-space: nowrap;
   }
   table.months th:first-child, table.months td:first-child { text-align: left; }
   table.months td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
@@ -2109,16 +2110,17 @@
         growthCell(g.netSales) +
         "<td>" + (m.hppComplete ? rp(m.hppTotal) : "—") + "</td>" +
         "<td>" + rpOrDash(m.grossProfit) + "</td>" +
+        "<td>" + rp(m.biayaTotal) + (m.ordersPending > 0 ? ' <span class="ink-faint" style="font-size:10.5px;">*sebagian</span>' : "") + "</td>" +
         "<td>" + rpOrDash(m.operatingProfit) + "</td>" +
         growthCell(g.operatingProfit) +
         "<td>" + pctOrDash(m.marginOperating) + "</td>" +
         '<td><span class="pill ' + qualityCls + '">' + pct(m.matchRate) + " match</span></td>" +
         "</tr>";
-      var detail = expanded ? '<tr class="detail-row"><td colspan="8"><div class="detail-wrap">' + monthDetailAccrual(m) + "</div></td></tr>" : "";
+      var detail = expanded ? '<tr class="detail-row"><td colspan="10"><div class="detail-wrap">' + monthDetailAccrual(m) + "</div></td></tr>" : "";
       return main + detail;
     }).join("");
     return '<table class="months"><thead><tr>' +
-      "<th>Bulan</th><th>Net Sales</th><th>Δ Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Operating Profit</th><th>Δ Operating Profit</th><th>Margin</th><th>Kualitas Data</th>" +
+      "<th>Bulan</th><th>Net Sales</th><th>Δ Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Platform Fee</th><th>Operating Profit</th><th>Δ Operating Profit</th><th>Margin</th><th>Kualitas Data</th>" +
       "</tr></thead><tbody>" + rows + "</tbody></table>";
   }
 
