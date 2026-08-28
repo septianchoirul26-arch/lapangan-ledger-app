@@ -1548,7 +1548,12 @@
       if (!months[ym]) months[ym] = {
         ym: ym, grossSales: 0, salesDiscount: 0, salesReturn: 0,
         hppFound: 0, qtyFound: 0, hppEstQty: 0,
-        biayaTotal: 0, ordersMatched: 0, ordersUnmatched: 0, ordersSettled: 0, ordersPending: 0
+        biayaTotal: 0, ordersMatched: 0, ordersUnmatched: 0, ordersSettled: 0, ordersPending: 0,
+        // Rincian tambahan: tiap order ditemukan (settled ATAU pending) dipecah lagi jadi
+        // "selesai" (tidak ada retur sama sekali di baris SKU manapun) vs "retur" (ada retur
+        // di minimal 1 baris SKU, dari kolom "Sku Quantity of return" -- sumber yang sama
+        // dipakai buat Sales Returns, lihat catatan di atas).
+        settledSelesai: 0, settledRetur: 0, pendingSelesai: 0, pendingRetur: 0
       };
       return months[ym];
     }
@@ -1574,12 +1579,14 @@
       var m = bucket(ym);
       var skuList = state.orderMaster[orderId];
       var hasAccrualData = false;
+      var orderHasReturn = false;
 
       skuList.forEach(function (pair) {
         if (pair.length < 6) return; // baris lama (upload sebelum fitur ini), belum ada data Akrual
         hasAccrualData = true;
         var sku = pair[PLINE.SKU], qtyNet = pair[PLINE.QTY], qtyOriginal = pair[PLINE.QTY_ORIGINAL],
           qtyReturn = pair[PLINE.QTY_RETURN], grossSales = pair[PLINE.GROSS_SALES], sellerDiscount = pair[PLINE.SELLER_DISCOUNT];
+        if (qtyReturn > 0) orderHasReturn = true;
         // Nilai retur diproporsikan dari qty yang benar-benar diretur -- TIDAK pakai kolom
         // "Order Refund Amount"/"Cancelation Return Type" langsung (terbukti tidak konsisten
         // terisi per baris SKU di file asli, lihat diskusi README). qtyReturn per baris dari
@@ -1600,8 +1607,13 @@
       if (hasAccrualData) {
         m.ordersMatched++;
         var fee = biayaByOrder[orderId];
-        if (fee != null) { m.biayaTotal += fee; m.ordersSettled++; }
-        else { m.ordersPending++; }
+        if (fee != null) {
+          m.biayaTotal += fee; m.ordersSettled++;
+          if (orderHasReturn) m.settledRetur++; else m.settledSelesai++;
+        } else {
+          m.ordersPending++;
+          if (orderHasReturn) m.pendingRetur++; else m.pendingSelesai++;
+        }
       } else {
         m.ordersUnmatched++;
       }
@@ -2148,11 +2160,24 @@
       : '<div class="note">Semua ' + m.ordersSettled.toLocaleString("id-ID") + ' order bulan ini sudah settle &mdash; Operating Profit final.</div>';
 
     var matchPct = Math.round(m.matchRate * 100);
+    var n = function (v) { return v.toLocaleString("id-ID"); };
+    var orderBreakdownHtml =
+      "<li class=\"total\"><span>Total order ditemukan</span><span class=\"amt\">" + n(m.ordersMatched) + " order</span></li>" +
+      "<li><span>&nbsp;&nbsp;&mdash; Settled</span><span class=\"amt\">" + n(m.ordersSettled) + " order</span></li>" +
+      "<li><span>&nbsp;&nbsp;&nbsp;&nbsp;&mdash; Selesai (tanpa retur)</span><span class=\"amt ink-faint\">" + n(m.settledSelesai) + " order</span></li>" +
+      "<li><span>&nbsp;&nbsp;&nbsp;&nbsp;&mdash; Ada retur</span><span class=\"amt ink-faint\">" + n(m.settledRetur) + " order</span></li>" +
+      "<li><span>&nbsp;&nbsp;&mdash; Pending (piutang)</span><span class=\"amt\">" + n(m.ordersPending) + " order</span></li>" +
+      "<li><span>&nbsp;&nbsp;&nbsp;&nbsp;&mdash; Selesai (tanpa retur)</span><span class=\"amt ink-faint\">" + n(m.pendingSelesai) + " order</span></li>" +
+      "<li><span>&nbsp;&nbsp;&nbsp;&nbsp;&mdash; Ada retur</span><span class=\"amt ink-faint\">" + n(m.pendingRetur) + " order</span></li>";
+
     return '<div class="detail-grid">' +
       '<div style="grid-column:1/-1;"><h3 style="' + sectionTitle + '">Ringkasan P&amp;L (basis Akrual &mdash; bulan Created Time)</h3>' +
       '<ul class="fee-list">' + waterfallHtml + "</ul>" + noteEst + notePending +
       "</div>" +
-      '<div style="grid-column:1/-1;border-top:1px solid var(--line);padding-top:14px;"><h3 style="' + sectionTitle + '">Kualitas Data</h3>' +
+      '<div><h3 style="' + sectionTitle + '">Rincian Order</h3>' +
+      '<ul class="fee-list">' + orderBreakdownHtml + "</ul>" +
+      "</div>" +
+      '<div><h3 style="' + sectionTitle + '">Kualitas Data</h3>' +
       '<div class="note">' + matchPct + '% order bulan ini punya data akrual lengkap (' + m.ordersMatched.toLocaleString("id-ID") + ' dari ' + (m.ordersMatched + m.ordersUnmatched).toLocaleString("id-ID") + ' order dikenal) &mdash; sisanya dari upload Data Pesanan sebelum fitur Akrual ada, upload ulang untuk melengkapi.</div>' +
       "</div></div>";
   }
