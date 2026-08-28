@@ -1962,17 +1962,16 @@
         growthCell(g.pendapatan) +
         "<td>" + (m.hppComplete ? rp(m.hppTotal) : "—") + "</td>" +
         "<td>" + rpOrDash(m.labaKotor) + "</td>" +
-        "<td>" + rp(m.biayaTotal) + "</td>" +
         "<td>" + rpOrDash(m.labaUsaha) + "</td>" +
         growthCell(g.labaUsaha) +
         "<td>" + pctOrDash(m.marginUsaha) + "</td>" +
         '<td><span class="pill ' + qualityCls + '">' + pct(m.matchRate) + " match</span></td>" +
         "</tr>";
-      var detail = expanded ? '<tr class="detail-row"><td colspan="10"><div class="detail-wrap">' + monthDetail(m) + "</div></td></tr>" : "";
+      var detail = expanded ? '<tr class="detail-row"><td colspan="9"><div class="detail-wrap">' + monthDetail(m) + "</div></td></tr>" : "";
       return main + detail;
     }).join("");
     return '<table class="months"><thead><tr>' +
-      "<th>Bulan</th><th>Net Sales</th><th>Δ Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Platform Fee</th><th>Operating Profit</th><th>Δ Operating Profit</th><th>Margin</th><th>Kualitas Data</th>" +
+      "<th>Bulan</th><th>Net Sales</th><th>Δ Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Operating Profit</th><th>Δ Operating Profit</th><th>Margin</th><th>Kualitas Data</th>" +
       "</tr></thead><tbody>" + rows + "</tbody></table>";
   }
 
