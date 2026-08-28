@@ -2499,9 +2499,88 @@
     return { name: "Detail " + year, rows: rows };
   }
 
+  // ================= Export XLSX -- basis Akrual (paralel dengan yang basis Kas di atas) =================
+  function computeMonthlyAccrualForStore(storeId) {
+    var savedState = state;
+    state = root.stores[storeId];
+    var months = computeMonthlyAccrual();
+    state = savedState;
+    return months;
+  }
+
+  var RINGKASAN_HEADERS_ACCRUAL = ["Bulan", "Toko", "Gross Sales", "Sales Discounts", "Sales Returns", "Net Sales",
+    "COGS", "Gross Profit", "Platform Fee", "Operating Profit", "Margin", "Order Pending (piutang)"];
+
+  function ringkasanRowForMonthAccrual(m, storeLabel) {
+    return [
+      cell(monthLabel(m.ym), XSTYLE.BOLD), cell(storeLabel),
+      cell(m.grossSales, XSTYLE.NUM), cell(-m.salesDiscount, XSTYLE.NUM), cell(-m.salesReturn, XSTYLE.NUM),
+      cell(m.netSales, XSTYLE.NUM), cell(m.hppComplete ? -m.hppTotal : null, XSTYLE.NUM),
+      cell(m.grossProfit, XSTYLE.NUM), cell(m.biayaTotal, XSTYLE.NUM),
+      cell(m.operatingProfit, XSTYLE.NUM), cell(m.marginOperating, XSTYLE.PCT), cell(m.ordersPending, XSTYLE.NUM)
+    ];
+  }
+
+  function buildRingkasanSheetAccrual(perStoreMonths) {
+    var headerRow = RINGKASAN_HEADERS_ACCRUAL.map(function (h) { return cell(h, XSTYLE.HEADER); });
+    var allYms = {};
+    STORE_DEFS.forEach(function (s) { perStoreMonths[s.id].forEach(function (m) { allYms[m.ym] = true; }); });
+    var yms = Object.keys(allYms).sort();
+    var rows = [headerRow];
+    yms.forEach(function (ym) {
+      STORE_DEFS.forEach(function (s) {
+        var m = perStoreMonths[s.id].filter(function (x) { return x.ym === ym; })[0];
+        if (m) rows.push(ringkasanRowForMonthAccrual(m, s.name));
+      });
+    });
+    return { name: "Ringkasan Bulanan (Akrual)", rows: rows };
+  }
+
+  function buildDetailSheetForYearAccrual(year, perStoreMonths) {
+    var rows = [];
+    STORE_DEFS.forEach(function (s) {
+      var months = perStoreMonths[s.id].filter(function (m) { return m.ym.indexOf(year + "-") === 0; });
+      if (!months.length) return;
+
+      var titleRow = [cell(s.name.toUpperCase(), XSTYLE.HEADER)];
+      months.forEach(function () { titleRow.push(cell("", XSTYLE.HEADER)); });
+      rows.push(titleRow);
+
+      var headerRow = [cell("Metrik", XSTYLE.BOLD)];
+      months.forEach(function (m) { headerRow.push(cell(monthLabel(m.ym), XSTYLE.BOLD)); });
+      rows.push(headerRow);
+
+      addDetailRow(rows, "Gross Sales", function (m) { return m.grossSales; }, months);
+      addDetailRow(rows, "Sales Discounts", function (m) { return -m.salesDiscount; }, months);
+      addDetailRow(rows, "Sales Returns", function (m) { return -m.salesReturn; }, months);
+      addDetailRow(rows, "Net Sales", function (m) { return m.netSales; }, months, { bold: true, fill: true });
+      addDetailRow(rows, "COGS", function (m) { return m.hppComplete ? -m.hppTotal : null; }, months);
+      addDetailRow(rows, "Gross Profit", function (m) { return m.grossProfit; }, months, { bold: true, fill: true });
+      addDetailRow(rows, "Platform Fee", function (m) { return m.biayaTotal; }, months);
+      addDetailRow(rows, "Operating Profit", function (m) { return m.operatingProfit; }, months, { bold: true, fill: true });
+      addDetailRow(rows, "Margin", function (m) { return m.marginOperating; }, months, { pct: true });
+      rows.push([]);
+
+      rows.push([cell("Rincian Order", XSTYLE.BOLD)]);
+      addDetailRow(rows, "Total order ditemukan", function (m) { return m.ordersMatched; }, months, { bold: true, fill: true });
+      addDetailRow(rows, "  Settled", function (m) { return m.ordersSettled; }, months);
+      addDetailRow(rows, "    Selesai (tanpa retur)", function (m) { return m.settledSelesai; }, months);
+      addDetailRow(rows, "    Ada retur", function (m) { return m.settledRetur; }, months);
+      addDetailRow(rows, "  Pending (piutang)", function (m) { return m.ordersPending; }, months);
+      addDetailRow(rows, "    Selesai (tanpa retur)", function (m) { return m.pendingSelesai; }, months);
+      addDetailRow(rows, "    Ada retur", function (m) { return m.pendingRetur; }, months);
+
+      rows.push([]);
+      rows.push([]);
+    });
+    return { name: "Detail Akrual " + year, rows: rows };
+  }
+
   async function exportAllToXlsx() {
     var perStoreMonths = {};
     STORE_DEFS.forEach(function (s) { perStoreMonths[s.id] = computeMonthlyForStore(s.id); });
+    var perStoreMonthsAccrual = {};
+    STORE_DEFS.forEach(function (s) { perStoreMonthsAccrual[s.id] = computeMonthlyAccrualForStore(s.id); });
 
     var years = {};
     STORE_DEFS.forEach(function (s) {
@@ -2509,8 +2588,16 @@
     });
     var sortedYears = Object.keys(years).sort();
 
+    var yearsAccrual = {};
+    STORE_DEFS.forEach(function (s) {
+      perStoreMonthsAccrual[s.id].forEach(function (m) { if (m.ym !== "?") yearsAccrual[m.ym.split("-")[0]] = true; });
+    });
+    var sortedYearsAccrual = Object.keys(yearsAccrual).sort();
+
     var sheets = [buildRingkasanSheet(perStoreMonths)];
     sortedYears.forEach(function (year) { sheets.push(buildDetailSheetForYear(year, perStoreMonths)); });
+    sheets.push(buildRingkasanSheetAccrual(perStoreMonthsAccrual));
+    sortedYearsAccrual.forEach(function (year) { sheets.push(buildDetailSheetForYearAccrual(year, perStoreMonthsAccrual)); });
 
     var bytes = buildXlsxFile(sheets);
     var today = new Date().toISOString().slice(0, 10);
