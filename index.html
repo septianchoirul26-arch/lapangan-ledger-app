@@ -412,7 +412,8 @@
   ];
 
   var DEFAULT_STATE = {
-    orderMaster: {},      // orderId -> [[sku, qty], ...]
+    orderMaster: {},      // orderId -> [[sku, qty, qtyOriginal, qtyReturn, grossSales, sellerDiscount], ...] (lihat PLINE)
+    orderMeta: {},         // orderId -> { status, created } -- basis Akrual, lihat computeMonthlyAccrual()
     skuNames: {},         // sku -> product name
     skuCost: {},          // sku -> harga modal
     pencairanRows: [],    // deduped rows, compact arrays (see PROW_* indices)
@@ -1209,8 +1210,21 @@
     NAME: ["Product Name"],
     VARIATION: ["Variation"],
     SELLERSKU: ["Seller SKU"],
-    CATEGORY: ["Product Category"]
+    CATEGORY: ["Product Category"],
+    // Ditambahkan untuk basis Akrual (lihat README "Model akuntansi -- basis Akrual") --
+    // opsional, tidak wajib, supaya file lama/tanpa kolom ini tetap bisa diupload.
+    STATUS: ["Order Status"],
+    CREATED_TIME: ["Created Time"],
+    GROSS_SALES_LINE: ["SKU Subtotal Before Discount"],
+    SELLER_DISCOUNT_LINE: ["SKU Seller Discount"]
   };
+
+  // Layout tiap entri di orderMaster[orderId] -- SKU & QTY (index 0-1) dipertahankan PERSIS
+  // sama posisinya dengan sebelum fitur Akrual ada (basis Kas cuma baca 2 elemen pertama ini),
+  // 4 elemen sisanya (index 2-5) ditambahkan DI BELAKANG supaya entri lama (cuma 2 elemen, dari
+  // upload sebelum fitur ini ada) tetap valid buat basis Kas -- cuma belum punya data Akrual
+  // sampai Data Pesanan-nya diupload ulang (lihat `pair.length < 6` di computeMonthlyAccrual()).
+  var PLINE = { SKU: 0, QTY: 1, QTY_ORIGINAL: 2, QTY_RETURN: 3, GROSS_SALES: 4, SELLER_DISCOUNT: 5 };
 
   function processPesanan(rows, fileName) {
     if (rows.length < 2) throw new Error("File kosong atau formatnya tidak dikenali.");
@@ -1241,14 +1255,29 @@
       var variation = idx.VARIATION > -1 ? String(raw[idx.VARIATION] || "").trim() : "";
       var sellerSku = idx.SELLERSKU > -1 ? String(raw[idx.SELLERSKU] || "").trim() : "";
       var category = idx.CATEGORY > -1 ? String(raw[idx.CATEGORY] || "").trim() : "";
+      var grossSalesLine = idx.GROSS_SALES_LINE > -1 ? toNumber(raw[idx.GROSS_SALES_LINE]) : 0;
+      var sellerDiscountLine = idx.SELLER_DISCOUNT_LINE > -1 ? toNumber(raw[idx.SELLER_DISCOUNT_LINE]) : 0;
+      var newLine = [sku, qty, qtyRaw, qtyReturned, grossSalesLine, sellerDiscountLine];
+
       if (!state.orderMaster[orderId]) state.orderMaster[orderId] = [];
       var list = state.orderMaster[orderId];
       var found = false;
       for (var j = 0; j < list.length; j++) {
-        if (list[j][0] === sku) { list[j][1] = qty; found = true; break; }
+        // Refresh SELURUH baris (bukan cuma qty) -- upload ulang harus benar-benar
+        // memperbarui, bukan cuma dilewati (lihat catatan sama di processPencairan()).
+        if (list[j][PLINE.SKU] === sku) { list[j] = newLine; found = true; break; }
       }
-      if (!found) { list.push([sku, qty]); added++; }
+      if (!found) { list.push(newLine); added++; }
       if (name || variation || sellerSku || category) state.skuNames[sku] = { name: name, variation: variation, sellerSku: sellerSku, category: category };
+
+      var status = idx.STATUS > -1 ? String(raw[idx.STATUS] || "").trim() : "";
+      var created = idx.CREATED_TIME > -1 ? String(raw[idx.CREATED_TIME] || "").trim() : "";
+      if (status || created) {
+        state.orderMeta[orderId] = {
+          status: status || (state.orderMeta[orderId] && state.orderMeta[orderId].status) || "",
+          created: created || (state.orderMeta[orderId] && state.orderMeta[orderId].created) || ""
+        };
+      }
     }
     logUpload("Data Pesanan", fileName, added, "");
     return { added: added };
@@ -1504,6 +1533,118 @@
     return list;
   }
 
+  /* ================= Compute (basis Akrual) =================
+     Paralel dengan computeMonthly() (basis Kas), tapi dikelompokkan per bulan "Created Time"
+     (dari Data Pesanan, via state.orderMeta) bukan Waktu Pembayaran. Gross Sales/Sales
+     Discounts/Sales Returns/Net Sales/COGS/Gross Profit bisa dihitung LANGSUNG dari Data
+     Pesanan sendiri (tidak nunggu settlement) -- cuma Platform Fee/Operating Profit yang masih
+     butuh "pinjam" dari Data Pencairan (kalau sudah settle). Lihat README "Model akuntansi --
+     basis Akrual" untuk penjelasan lengkap & alasan tiap keputusan desainnya. */
+  function computeMonthlyAccrual() {
+    var months = {};
+    function bucket(ym) {
+      if (!months[ym]) months[ym] = {
+        ym: ym, grossSales: 0, salesDiscount: 0, salesReturn: 0,
+        hppFound: 0, qtyFound: 0, hppEstQty: 0,
+        biayaTotal: 0, ordersMatched: 0, ordersUnmatched: 0, ordersSettled: 0, ordersPending: 0
+      };
+      return months[ym];
+    }
+
+    // Index Data Pencairan per Order ID -- dipakai buat cari Platform Fee order yang sudah
+    // settle. Satu order bisa punya >1 baris (jual + retur/penyesuaian), dijumlahkan semua.
+    var biayaByOrder = {};
+    state.pencairanRows.forEach(function (r) {
+      var id = r[PROW.ID];
+      biayaByOrder[id] = (biayaByOrder[id] || 0) + r[PROW.BIAYA_TOTAL];
+    });
+
+    Object.keys(state.orderMaster).forEach(function (orderId) {
+      var meta = state.orderMeta[orderId];
+      // Order dari upload Data Pesanan SEBELUM fitur Akrual ada tidak punya orderMeta sama
+      // sekali -- tidak bisa dikelompokkan ke bulan manapun sampai diupload ulang.
+      if (!meta || !meta.created) return;
+      // Order batal tidak pernah jadi penjualan sungguhan -- dikecualikan total dari Akrual
+      // (beda dengan basis Kas yang tidak kenal konsep "Dibatalkan" sama sekali).
+      if (meta.status === "Dibatalkan") return;
+
+      var ym = toYearMonth(meta.created) || "?";
+      var m = bucket(ym);
+      var skuList = state.orderMaster[orderId];
+      var hasAccrualData = false;
+
+      skuList.forEach(function (pair) {
+        if (pair.length < 6) return; // baris lama (upload sebelum fitur ini), belum ada data Akrual
+        hasAccrualData = true;
+        var sku = pair[PLINE.SKU], qtyNet = pair[PLINE.QTY], qtyOriginal = pair[PLINE.QTY_ORIGINAL],
+          qtyReturn = pair[PLINE.QTY_RETURN], grossSales = pair[PLINE.GROSS_SALES], sellerDiscount = pair[PLINE.SELLER_DISCOUNT];
+        // Nilai retur diproporsikan dari qty yang benar-benar diretur -- TIDAK pakai kolom
+        // "Order Refund Amount"/"Cancelation Return Type" langsung (terbukti tidak konsisten
+        // terisi per baris SKU di file asli, lihat diskusi README). qtyReturn per baris dari
+        // "Sku Quantity of return" jauh lebih bisa dipercaya (sudah dipakai buat HPP juga).
+        var netValue = grossSales - sellerDiscount;
+        var returnPortion = qtyOriginal > 0 ? netValue * (qtyReturn / qtyOriginal) : 0;
+        m.grossSales += grossSales;
+        m.salesDiscount += sellerDiscount;
+        m.salesReturn += returnPortion;
+
+        if (qtyNet > 0) {
+          var cost = state.skuCost[sku];
+          if (cost != null) { m.hppFound += cost * qtyNet; m.qtyFound += qtyNet; }
+          else { m.hppEstQty += qtyNet; }
+        }
+      });
+
+      if (hasAccrualData) {
+        m.ordersMatched++;
+        var fee = biayaByOrder[orderId];
+        if (fee != null) { m.biayaTotal += fee; m.ordersSettled++; }
+        else { m.ordersPending++; }
+      } else {
+        m.ordersUnmatched++;
+      }
+    });
+
+    var list = Object.keys(months).map(function (ym) {
+      var m = months[ym];
+      var netSales = m.grossSales - m.salesDiscount - m.salesReturn;
+      var hasCostRef = m.qtyFound > 0;
+      var avgCost = hasCostRef ? m.hppFound / m.qtyFound : null;
+      var hppEst = hasCostRef ? m.hppEstQty * avgCost : 0;
+      var hppUnknownQty = hasCostRef ? 0 : m.hppEstQty;
+      var hppTotal = m.hppFound + hppEst;
+      var hppComplete = m.ordersMatched > 0 && hppUnknownQty === 0;
+      var grossProfit = hppComplete ? netSales - hppTotal : null;
+      // Operating Profit cuma bisa dihitung kalau SEMUA order di bulan ini sudah settle
+      // (ordersPending === 0) -- kalau masih ada yang pending, Platform Fee-nya belum lengkap,
+      // jadi Operating Profit ditampilkan "—" (null), bukan angka yang understated diam-diam.
+      var allSettled = m.ordersPending === 0;
+      var operatingProfit = (grossProfit != null && allSettled) ? grossProfit + m.biayaTotal : null;
+      var totalOrders = m.ordersMatched + m.ordersUnmatched;
+      return Object.assign(m, {
+        netSales: netSales, hppTotal: hppTotal, hppTotalDisplay: hppComplete ? hppTotal : null, hppComplete: hppComplete,
+        grossProfit: grossProfit, operatingProfit: operatingProfit,
+        marginGrossProfit: (grossProfit != null && netSales) ? grossProfit / netSales : null,
+        marginOperating: (operatingProfit != null && netSales) ? operatingProfit / netSales : null,
+        matchRate: totalOrders ? m.ordersMatched / totalOrders : 0
+      });
+    });
+    list.sort(function (a, b) { return a.ym < b.ym ? -1 : 1; });
+
+    function growthPct(curr, prev) {
+      if (curr == null || prev == null || !prev) return null;
+      return (curr - prev) / Math.abs(prev);
+    }
+    list.forEach(function (m, i) {
+      var prev = i > 0 ? list[i - 1] : null;
+      m.growth = prev ? {
+        netSales: growthPct(m.netSales, prev.netSales),
+        operatingProfit: growthPct(m.operatingProfit, prev.operatingProfit)
+      } : null;
+    });
+    return list;
+  }
+
   /* ================= Formatting ================= */
   function rp(n, opts) {
     opts = opts || {};
@@ -1526,6 +1667,7 @@
   /* ================= Render ================= */
   var expandedMonth = null;
   var accountingHelpOpen = false;
+  var basisMode = "cash"; // "cash" | "accrual" -- lihat renderDashboard() & computeMonthlyAccrual()
 
   function render() {
     renderStoreTabs();
@@ -1597,33 +1739,62 @@
       (state.pencairanRows.length ? " · " + state.pencairanRows.length.toLocaleString("id-ID") + " baris pencairan tersimpan" : "");
   }
 
+  var ACCRUAL_SERIES = [
+    { key: "netSales", color: "var(--ink-faint)", label: "Net Sales" },
+    { key: "hppTotalDisplay", color: "var(--warn)", label: "COGS" },
+    { key: "operatingProfit", color: "var(--accent)", label: "Operating Profit" }
+  ];
+
   function renderDashboard() {
     var host = document.getElementById("dashboard");
-    var months = computeMonthly();
+    var isAccrual = basisMode === "accrual";
+    var months = isAccrual ? computeMonthlyAccrual() : computeMonthly();
+    var basisToggleHtml = '<div style="display:flex;gap:8px;margin-bottom:18px;">' +
+      '<button class="btn small' + (isAccrual ? "" : " primary") + '" type="button" id="basis-cash-btn">Kas</button>' +
+      '<button class="btn small' + (isAccrual ? " primary" : "") + '" type="button" id="basis-accrual-btn">Akrual</button>' +
+      "</div>";
+
     if (!months.length) {
-      host.innerHTML = '<div class="card empty"><div class="big">Belum ada data</div>Unggah Data Pencairan bulan pertama untuk mulai melihat ringkasan Net Sales, COGS, dan Operating Profit di sini.</div>';
+      host.innerHTML = basisToggleHtml + '<div class="card empty"><div class="big">Belum ada data</div>' +
+        (isAccrual
+          ? "Upload Data Pesanan yang punya kolom Created Time/Order Status/nilai SKU untuk mulai melihat basis Akrual di sini."
+          : "Unggah Data Pencairan bulan pertama untuk mulai melihat ringkasan Net Sales, COGS, dan Operating Profit di sini.") +
+        "</div>";
+      attachBasisToggleHandlers();
       return;
     }
-    var html = "";
-    html += '<section><div class="section-head"><h2>Tren bulanan</h2><span class="hint">Net Sales, COGS, Operating Profit</span></div>';
-    html += '<div class="card chart-card">' + trendChart(months) + "</div></section>";
+    var html = basisToggleHtml;
+    html += '<section><div class="section-head"><h2>Tren bulanan' + (isAccrual ? " (Akrual)" : " (Kas)") + '</h2><span class="hint">Net Sales, COGS, Operating Profit</span></div>';
+    html += '<div class="card chart-card">' + trendChart(months, isAccrual ? ACCRUAL_SERIES : null) + "</div></section>";
 
-    html += '<section><div class="section-head"><h2>Rincian per bulan</h2><div style="display:flex;align-items:center;gap:10px;">' +
+    html += '<section><div class="section-head"><h2>Rincian per bulan' + (isAccrual ? " (Akrual)" : " (Kas)") + '</h2><div style="display:flex;align-items:center;gap:10px;">' +
       '<span class="hint">Klik satu baris untuk lihat detail biaya</span>' +
       '<button class="icon-btn" id="accounting-help-toggle" type="button" title="Penjelasan istilah akuntansi" aria-label="Penjelasan istilah akuntansi">' +
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>' +
       "</button></div></div>";
     html += '<div class="card" id="accounting-help-card" style="padding:16px 20px;' + (accountingHelpOpen ? "" : "display:none;") + '">' + accountingHelpContent() + "</div>";
-    html += '<div class="card table-scroll">' + monthTable(months) + "</div></section>";
+    html += '<div class="card table-scroll">' + (isAccrual ? monthTableAccrual(months) : monthTable(months)) + "</div></section>";
 
-    html += missingSkusPanel();
+    if (!isAccrual) html += missingSkusPanel();
 
     host.innerHTML = html;
+    attachBasisToggleHandlers();
     attachRowHandlers(months);
-    attachMissingSkuHandlers();
+    if (!isAccrual) attachMissingSkuHandlers();
     document.getElementById("accounting-help-toggle").addEventListener("click", function () {
       accountingHelpOpen = !accountingHelpOpen;
       renderDashboard();
+    });
+  }
+
+  function attachBasisToggleHandlers() {
+    document.getElementById("basis-cash-btn").addEventListener("click", function () {
+      if (basisMode === "cash") return;
+      basisMode = "cash"; expandedMonth = null; renderDashboard();
+    });
+    document.getElementById("basis-accrual-btn").addEventListener("click", function () {
+      if (basisMode === "accrual") return;
+      basisMode = "accrual"; expandedMonth = null; renderDashboard();
     });
   }
 
@@ -1714,10 +1885,10 @@
     }
   }
 
-  function trendChart(months) {
+  function trendChart(months, seriesOverride) {
     var w = 1080, h = 220, padL = 60, padR = 16, padT = 16, padB = 28;
     var innerW = w - padL - padR, innerH = h - padT - padB;
-    var series = [
+    var series = seriesOverride || [
       { key: "pendapatan", color: "var(--ink-faint)", label: "Net Sales" },
       { key: "hppTotalDisplay", color: "var(--warn)", label: "COGS" },
       { key: "labaUsaha", color: "var(--accent)", label: "Operating Profit" }
@@ -1922,6 +2093,62 @@
       '<div class="note">Simpan ringkasan angka bulan ini PERMANEN, lalu hapus baris mentah Data Pencairan bulan ini dari app supaya app tetap ringan. Pastikan sudah dicatat ke pembukuan kamu sendiri dulu &mdash; setelah diarsip, data mentahnya tidak bisa dihitung ulang lagi kecuali upload ulang CSV-nya.</div>' +
       '<button class="btn small archive-month-btn" type="button" data-ym="' + m.ym + '" style="margin-top:8px;">Arsipkan ' + monthLabel(m.ym) + "</button>" +
       "</div>";
+  }
+
+  // ================= Tabel & detail basis Akrual (paralel dengan monthTable()/monthDetail()) =================
+  // Kolom lebih sedikit dari versi Kas -- tidak ada "Biaya Platform" di kolom utama (lihat
+  // catatan di monthDetailAccrual) dan tidak ada arsip (orderMaster tidak pernah dipangkas).
+  function monthTableAccrual(months) {
+    var rows = months.slice().reverse().map(function (m) {
+      var qualityCls = m.matchRate >= 0.9 ? "good" : m.matchRate >= 0.6 ? "warn" : "bad";
+      var expanded = expandedMonth === m.ym;
+      var g = m.growth || {};
+      var main = '<tr data-ym="' + m.ym + '" class="' + (expanded ? "expanded" : "") + '">' +
+        '<td class="month-name">' + monthLabel(m.ym) + "</td>" +
+        "<td>" + rp(m.netSales) + "</td>" +
+        growthCell(g.netSales) +
+        "<td>" + (m.hppComplete ? rp(m.hppTotal) : "—") + "</td>" +
+        "<td>" + rpOrDash(m.grossProfit) + "</td>" +
+        "<td>" + rpOrDash(m.operatingProfit) + "</td>" +
+        growthCell(g.operatingProfit) +
+        "<td>" + pctOrDash(m.marginOperating) + "</td>" +
+        '<td><span class="pill ' + qualityCls + '">' + pct(m.matchRate) + " match</span></td>" +
+        "</tr>";
+      var detail = expanded ? '<tr class="detail-row"><td colspan="8"><div class="detail-wrap">' + monthDetailAccrual(m) + "</div></td></tr>" : "";
+      return main + detail;
+    }).join("");
+    return '<table class="months"><thead><tr>' +
+      "<th>Bulan</th><th>Net Sales</th><th>Δ Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Operating Profit</th><th>Δ Operating Profit</th><th>Margin</th><th>Kualitas Data</th>" +
+      "</tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+
+  function monthDetailAccrual(m) {
+    var sectionTitle = "font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;";
+    var waterfallHtml =
+      "<li><span>Gross Sales</span><span class=\"amt\">" + rp(m.grossSales) + "</span></li>" +
+      "<li><span>Sales Discounts</span><span class=\"amt\">" + rp(-m.salesDiscount) + "</span></li>" +
+      "<li><span>Sales Returns</span><span class=\"amt\">" + rp(-m.salesReturn) + "</span></li>" +
+      "<li class=\"total\"><span>Net Sales</span><span class=\"amt\">" + rp(m.netSales) + "</span></li>" +
+      "<li><span>COGS</span><span class=\"amt\">" + (m.hppComplete ? rp(-m.hppTotal) : "—") + "</span></li>" +
+      "<li class=\"total\"><span>Gross Profit</span><span class=\"amt\">" + rpOrDash(m.grossProfit) + "</span></li>" +
+      "<li><span>Platform Fee" + (m.ordersPending > 0 ? " <span class=\"ink-faint\">(sebagian, lihat catatan)</span>" : "") + "</span><span class=\"amt\">" + rp(m.biayaTotal) + "</span></li>" +
+      "<li class=\"total\"><span>Operating Profit</span><span class=\"amt\">" + rpOrDash(m.operatingProfit) + "</span></li>";
+
+    var noteEst = !m.hppComplete
+      ? '<div class="note"><b>COGS belum lengkap</b> &mdash; ada SKU pada order bulan ini yang belum punya harga modal. Upload Harga Modal SKU untuk melengkapi.</div>'
+      : "";
+    var notePending = m.ordersPending > 0
+      ? '<div class="note"><b>' + m.ordersPending.toLocaleString("id-ID") + ' dari ' + (m.ordersSettled + m.ordersPending).toLocaleString("id-ID") + ' order</b> di bulan ini belum ketemu di Data Pencairan (uangnya belum cair &mdash; ini <b>piutang</b>). Platform Fee di atas cuma dari ' + m.ordersSettled.toLocaleString("id-ID") + ' order yang sudah settle, jadi <b>Operating Profit belum bisa ditampilkan</b> sampai semua order bulan ini settle. Gross Sales/Net Sales/COGS/Gross Profit di atas TETAP lengkap &mdash; itu tidak butuh Data Pencairan sama sekali.</div>'
+      : '<div class="note">Semua ' + m.ordersSettled.toLocaleString("id-ID") + ' order bulan ini sudah settle &mdash; Operating Profit final.</div>';
+
+    var matchPct = Math.round(m.matchRate * 100);
+    return '<div class="detail-grid">' +
+      '<div style="grid-column:1/-1;"><h3 style="' + sectionTitle + '">Ringkasan P&amp;L (basis Akrual &mdash; bulan Created Time)</h3>' +
+      '<ul class="fee-list">' + waterfallHtml + "</ul>" + noteEst + notePending +
+      "</div>" +
+      '<div style="grid-column:1/-1;border-top:1px solid var(--line);padding-top:14px;"><h3 style="' + sectionTitle + '">Kualitas Data</h3>' +
+      '<div class="note">' + matchPct + '% order bulan ini punya data akrual lengkap (' + m.ordersMatched.toLocaleString("id-ID") + ' dari ' + (m.ordersMatched + m.ordersUnmatched).toLocaleString("id-ID") + ' order dikenal) &mdash; sisanya dari upload Data Pesanan sebelum fitur Akrual ada, upload ulang untuk melengkapi.</div>' +
+      "</div></div>";
   }
 
   function attachRowHandlers(months) {
