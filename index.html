@@ -1962,8 +1962,8 @@
         growthCell(g.pendapatan) +
         "<td>" + (m.hppComplete ? rp(m.hppTotal) : "—") + "</td>" +
         "<td>" + rpOrDash(m.labaKotor) + "</td>" +
+        "<td>" + rp(m.biayaTotal) + "</td>" +
         "<td>" + rpOrDash(m.labaUsaha) + "</td>" +
-        growthCell(g.labaUsaha) +
         "<td>" + pctOrDash(m.marginUsaha) + "</td>" +
         '<td><span class="pill ' + qualityCls + '">' + pct(m.matchRate) + " match</span></td>" +
         "</tr>";
@@ -1971,7 +1971,7 @@
       return main + detail;
     }).join("");
     return '<table class="months"><thead><tr>' +
-      "<th>Bulan</th><th>Net Sales</th><th>Δ Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Operating Profit</th><th>Δ Operating Profit</th><th>Margin</th><th>Kualitas Data</th>" +
+      "<th>Bulan</th><th>Net Sales</th><th>Δ Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Platform Fee</th><th>Operating Profit</th><th>Margin</th><th>Kualitas Data</th>" +
       "</tr></thead><tbody>" + rows + "</tbody></table>";
   }
 
@@ -2110,8 +2110,8 @@
         growthCell(g.netSales) +
         "<td>" + (m.hppComplete ? rp(m.hppTotal) : "—") + "</td>" +
         "<td>" + rpOrDash(m.grossProfit) + "</td>" +
+        "<td>" + rp(m.biayaTotal) + (m.ordersPending > 0 ? " *" : "") + "</td>" +
         "<td>" + rpOrDash(m.operatingProfit) + "</td>" +
-        growthCell(g.operatingProfit) +
         "<td>" + pctOrDash(m.marginOperating) + "</td>" +
         '<td><span class="pill ' + qualityCls + '">' + pct(m.matchRate) + " match</span></td>" +
         "</tr>";
@@ -2119,7 +2119,7 @@
       return main + detail;
     }).join("");
     return '<table class="months"><thead><tr>' +
-      "<th>Bulan</th><th>Net Sales</th><th>Δ Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Operating Profit</th><th>Δ Operating Profit</th><th>Margin</th><th>Kualitas Data</th>" +
+      "<th>Bulan</th><th>Net Sales</th><th>Δ Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Platform Fee</th><th>Operating Profit</th><th>Margin</th><th>Kualitas Data</th>" +
       "</tr></thead><tbody>" + rows + "</tbody></table>";
   }
 
