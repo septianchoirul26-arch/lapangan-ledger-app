@@ -420,7 +420,9 @@
     skuCost: {},          // sku -> harga modal
     pencairanRows: [],    // deduped rows, compact arrays (see PROW_* indices)
     uploads: [],          // {t, label, fileName, rows}
-    monthlyArchive: []    // [{ym, archived:true, ...semua field hasil computeMonthly()}] -- lihat archiveMonth()
+    monthlyArchive: [],   // [{ym, archived:true, ...semua field hasil computeMonthly()}] -- lihat archiveMonth()
+    archivedBiayaByOrder: {} // orderId -> total Platform Fee, diisi archiveMonth() sebelum pencairanRows bulan
+                             // itu dihapus -- supaya computeMonthlyAccrual() tetap tahu order itu sudah settle
   };
   var root = null;  // { activeStore, stores: { id: stateObj, ... } }
   var state = null; // = root.stores[root.activeStore]
@@ -1560,7 +1562,11 @@
 
     // Index Data Pencairan per Order ID -- dipakai buat cari Platform Fee order yang sudah
     // settle. Satu order bisa punya >1 baris (jual + retur/penyesuaian), dijumlahkan semua.
-    var biayaByOrder = {};
+    // Mulai dari fee order yang sudah diarsipkan (baris mentahnya sudah dihapus oleh
+    // archiveMonth(), lihat state.archivedBiayaByOrder), lalu tambahkan kontribusi dari baris
+    // pencairanRows yang masih live -- supaya arsip bulan Kas tidak bikin order akrual yang
+    // sebenarnya sudah settle balik dianggap pending.
+    var biayaByOrder = Object.assign({}, state.archivedBiayaByOrder || {});
     state.pencairanRows.forEach(function (r) {
       var id = r[PROW.ID];
       biayaByOrder[id] = (biayaByOrder[id] || 0) + r[PROW.BIAYA_TOTAL];
@@ -2213,6 +2219,17 @@
     delete snapshot.growth; // growth dihitung ulang tiap render dari urutan kronologis, bukan disimpan
     snapshot.archived = true;
     state.monthlyArchive.push(snapshot);
+    // Sebelum baris mentahnya dibuang, simpan dulu Platform Fee per Order ID ke
+    // state.archivedBiayaByOrder -- computeMonthlyAccrual() butuh ini buat tetap tahu order
+    // mana yang sudah "settle" walau baris Data Pencairan aslinya sudah tidak ada lagi.
+    // Tanpa ini, order yang fee-nya cuma tercatat di baris-baris bulan yang diarsipkan akan
+    // balik dianggap "pending" begitu bulan Kas-nya diarsipkan (lihat README/bug report).
+    state.pencairanRows.forEach(function (r) {
+      var rym = toYearMonth(r[PROW.WPEMBAYARAN]) || toYearMonth(r[PROW.WPEMESANAN]) || "?";
+      if (rym !== ym) return;
+      var id = r[PROW.ID];
+      state.archivedBiayaByOrder[id] = (state.archivedBiayaByOrder[id] || 0) + r[PROW.BIAYA_TOTAL];
+    });
     state.pencairanRows = state.pencairanRows.filter(function (r) {
       var rym = toYearMonth(r[PROW.WPEMBAYARAN]) || toYearMonth(r[PROW.WPEMESANAN]) || "?";
       return rym !== ym;
