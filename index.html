@@ -312,7 +312,20 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
 
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  /* ---- Boot loading (fetch state.json dari GitHub + hitung ulang computeMonthly/Accrual --
+     bisa kerasa lama kalau datanya sudah banyak, jadi butuh indikator eksplisit daripada
+     halaman terlihat "siap" padahal masih proses di belakang) ---- */
+  .spinner {
+    width: 28px; height: 28px; margin: 0 auto; border-radius: 50%;
+    border: 3px solid var(--line); border-top-color: var(--accent);
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+    .spinner { animation: none; border-top-color: var(--line); }
+  }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -349,11 +362,16 @@
     </div>
   </header>
 
-  <div id="store-tabs" style="display:flex;gap:8px;margin-bottom:18px;"></div>
+  <div id="store-tabs" style="display:none;gap:8px;margin-bottom:18px;"></div>
 
   <div id="setup-screen" style="display:none;"></div>
 
-  <section id="upload-section">
+  <div id="boot-loading" class="card" style="padding:44px 20px;text-align:center;max-width:420px;margin:0 auto;">
+    <div class="spinner" aria-hidden="true"></div>
+    <div style="margin-top:14px;color:var(--ink-muted);font-size:13.5px;">Memuat data dari GitHub&hellip;</div>
+  </div>
+
+  <section id="upload-section" style="display:none;">
     <div class="section-head">
       <h2>Unggah data bulanan</h2>
       <span class="hint">Format CSV atau XLSX &middot; data digabung otomatis ke riwayat</span>
@@ -424,7 +442,7 @@
     </div>
   </section>
 
-  <div id="dashboard"></div>
+  <div id="dashboard" style="display:none;"></div>
 
   <footer class="foot">
     <span>Data disimpan di repo GitHub privat kamu sendiri (lihat Pengaturan Penyimpanan).</span>
@@ -2730,6 +2748,7 @@
   // publik. errorMsg dipakai kalau boot gagal (token ditolak, dsb) supaya user bisa perbaiki.
   function renderSetupScreen(errorMsg) {
     var cfg = getGithubConfig() || {};
+    document.getElementById("boot-loading").style.display = "none";
     document.getElementById("store-tabs").style.display = "none";
     document.getElementById("upload-section").style.display = "none";
     document.getElementById("dashboard").style.display = "none";
@@ -2781,10 +2800,18 @@
       return;
     }
     document.getElementById("setup-screen").style.display = "none";
+    // render() memanggil computeMonthly()/computeMonthlyAccrual(), loop penuh atas SEMUA baris
+    // -- bisa lumayan berat kalau datanya sudah banyak. Sengaja BELUM sembunyikan spinner &
+    // BELUM tampilkan dashboard sebelum ini selesai, supaya user tidak lihat halaman kosong
+    // "nge-freeze" sesaat -- biarkan spinner tetap tampil sampai render() beres, baru semuanya
+    // muncul sekaligus dalam keadaan sudah lengkap. rAF ganda di bawah cuma supaya browser
+    // sempat menggambar frame spinner dulu sebelum thread diblok oleh compute yang berat.
+    await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
+    render();
+    document.getElementById("boot-loading").style.display = "none";
     document.getElementById("store-tabs").style.display = "flex";
     document.getElementById("upload-section").style.display = "";
     document.getElementById("dashboard").style.display = "";
-    render();
   }
 
   function initDragVisuals() {
