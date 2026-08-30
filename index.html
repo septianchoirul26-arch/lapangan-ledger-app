@@ -205,14 +205,6 @@
   table.months tbody tr.expanded { background: var(--accent-soft); }
   .month-name { font-family: var(--body); font-weight: 600; text-align: left; }
   .table-scroll { overflow-x: auto; }
-
-  /* ---- Tabel "compact" (tab Gabungan) -- 2 tabel 9-kolom bersebelahan dalam 1 halaman butuh
-     lebih hemat ruang dari tabel per-toko biasa: font & padding lebih kecil, header dipendekkan
-     (title="..." nyimpen nama lengkapnya buat tooltip). table-scroll tetap jadi jaring pengaman
-     kalau layarnya sempit banget, bukan scroll yang muncul dalam pemakaian normal. ---- */
-  table.months.compact { font-size: 12px; }
-  table.months.compact th { font-size: 10px; padding: 7px 8px; }
-  table.months.compact td { padding: 7px 8px; }
   .pill {
     display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
     font-family: var(--body);
@@ -1937,16 +1929,16 @@
         "Upload data di salah satu toko dulu untuk mulai melihat ringkasan gabungan di sini.</div>";
       return;
     }
+    // Atas-bawah (bukan 2 kolom bersebelahan) -- tabel 9 kolom penuh lebih pas ditampilkan
+    // selebar halaman daripada dipaksa muat setengah lebar, lihat diskusi/screenshot user.
     function side(kind, label, list) {
-      if (!list.length) return '<div><h3 style="font-size:14px;margin-bottom:10px;">' + label + '</h3><div class="card empty" style="padding:20px;"><div class="big" style="font-size:14px;">Belum ada data</div></div></div>';
-      return '<div><h3 style="font-size:14px;margin-bottom:10px;">' + label + '</h3>' +
+      if (!list.length) return '<section><div class="section-head"><h2>' + label + '</h2></div>' +
+        '<div class="card empty"><div class="big">Belum ada data</div></div></section>';
+      return '<section><div class="section-head"><h2>' + label + '</h2></div>' +
         '<div class="card chart-card" style="margin-bottom:14px;">' + trendChart(list, kind === "cash" ? COMBINED_CASH_SERIES : COMBINED_ACCRUAL_SERIES) + "</div>" +
-        '<div class="card table-scroll">' + monthTableCombined(list, kind) + "</div></div>";
+        '<div class="card table-scroll">' + monthTableCombined(list, kind) + "</div></section>";
     }
-    host.innerHTML = '<section><div class="basis-compare-grid" style="align-items:start;">' +
-      side("cash", "Kas (Gabungan)", cash) +
-      side("accrual", "Akrual (Gabungan)", accrual) +
-      "</div></section>";
+    host.innerHTML = side("cash", "Kas (Gabungan)", cash) + side("accrual", "Akrual (Gabungan)", accrual);
     attachCombinedRowHandlers();
   }
 
@@ -1969,10 +1961,8 @@
       var detail = expanded ? '<tr class="detail-row"><td colspan="9"><div class="detail-wrap">' + monthDetailCombined(m) + "</div></td></tr>" : "";
       return main + detail;
     }).join("");
-    return '<table class="months compact"><thead><tr>' +
-      '<th>Bulan</th><th title="Net Sales">Net Sales</th><th title="Δ Net Sales">Δ</th>' +
-      '<th title="COGS">COGS</th><th title="Gross Profit">Gr. Profit</th><th title="Platform Fee">Fee</th>' +
-      '<th title="Operating Profit">Op. Profit</th><th title="Margin">Margin</th><th title="Kualitas Data">Match%</th>' +
+    return '<table class="months"><thead><tr>' +
+      "<th>Bulan</th><th>Net Sales</th><th>Δ Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Platform Fee</th><th>Operating Profit</th><th>Margin</th><th>Kualitas Data</th>" +
       "</tr></thead><tbody>" + rows + "</tbody></table>";
   }
 
@@ -1989,7 +1979,7 @@
         "<td>" + rpOrDash(r.operatingProfit) + "</td>" +
         "<td>" + pctOrDash(r.margin) + "</td></tr>";
     }).join("");
-    return '<table class="months compact" style="width:100%;"><thead><tr>' +
+    return '<table class="months" style="width:100%;"><thead><tr>' +
       "<th>Toko</th><th>Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Platform Fee</th><th>Operating Profit</th><th>Margin</th>" +
       "</tr></thead><tbody>" + rows + "</tbody></table>";
   }
