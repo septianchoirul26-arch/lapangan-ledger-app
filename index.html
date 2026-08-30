@@ -203,6 +203,8 @@
   .basis-compare-col .formula { font-family: var(--mono); font-size: 12px; background: var(--surface-raised); border-radius: 6px; padding: 8px 10px; margin: 8px 0; line-height: 1.6; }
   .basis-compare-col ul { margin: 6px 0 0; padding-left: 18px; }
   .basis-compare-col li { margin-bottom: 4px; line-height: 1.5; }
+  .glossary-columns { column-count: 2; column-gap: 28px; }
+  @media (max-width: 700px) { .glossary-columns { column-count: 1; } }
   .fee-list { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
   .fee-list li { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dotted var(--line); }
   .fee-list li .amt { font-family: var(--mono); font-variant-numeric: tabular-nums; }
@@ -1866,44 +1868,38 @@
         '</div>' +
       '</div>';
 
+    // Glossary digabung jadi SATU daftar (bukan dipisah per basis lagi) -- istilah seperti
+    // Net Sales/COGS/Gross Profit/Operating Profit konsepnya sama persis di Kas maupun Akrual,
+    // cuma beda sumber kolom & waktu pengelompokan, jadi dijelaskan sekali per istilah dengan
+    // kedua sumbernya disebut kalau beda. Cuma Adjustments & Settlement Amount (khusus Kas) dan
+    // Created Time/Order Settled/Order Pending/Rincian Order (khusus Akrual) yang benar-benar
+    // tidak punya padanan di basis satunya, jadi tetap ditandai "(khusus ...)".
+    // Format gaya kamus: "Istilah. Penjelasan..." dalam 1 paragraf, ditampilkan 2 kolom.
     var terms = [
-      ["Gross Sales", "Total nilai jual barang SEBELUM dikurangi diskon apa pun. Diambil langsung dari kolom “Subtotal sebelum diskon” di Data Pencairan, dijumlahkan per bulan (basis Waktu Pembayaran)."],
-      ["Sales Discounts", "Diskon yang ditanggung/didanai oleh kamu sebagai penjual (bukan diskon yang disubsidi platform). Diambil dari kolom “Diskon Penjual”. Selalu jadi pengurang."],
-      ["Sales Returns", "Uang yang dikembalikan ke pembeli akibat retur/refund, dihitung SETELAH diskon penjual (supaya tidak dobel-hitung dengan Sales Discounts). Diambil dari kolom “Subtotal Pengembalian Dana Setelah Diskon Penjual”. Selalu jadi pengurang."],
-      ["Net Sales", "= Gross Sales &minus; Sales Discounts &minus; Sales Returns. Ini angka “omzet” utama yang dipakai di seluruh app (grafik tren, growth %, dsb) &mdash; menggantikan kolom “Total Pendapatan” yang dulu dipakai."],
-      ["COGS (Cost of Goods Sold)", "Harga modal (HPP) dari semua unit yang benar-benar terjual (qty net setelah retur) bulan ini, dicari dari Data Pesanan + Harga Modal SKU. Kalau ada SKU yang belum punya harga modal, COGS ditampilkan “&mdash;” sampai dilengkapi (tidak pernah ditampilkan sebagai Rp 0 yang menyesatkan)."],
-      ["Gross Profit", "= Net Sales &minus; COGS. Untung kotor dari jualan barangnya saja, belum dipotong biaya platform."],
-      ["Platform Fee", "Semua potongan dari marketplace: komisi platform, komisi dinamis/iklan, biaya cashback, biaya pemrosesan pesanan, dan semua komponen ongkir. Rinciannya ada di panel “Rincian Biaya Platform” di bawah Ringkasan P&amp;L ini."],
-      ["Adjustments", "Koreksi dari platform di luar Platform Fee &mdash; misalnya penggantian biaya logistik atau penggantian dana oleh platform (kompensasi). Bisa menambah atau mengurangi, tergantung jenis transaksinya."],
-      ["Operating Profit", "= Gross Profit &minus; Platform Fee + Adjustments. Angka paling bawah &mdash; untung bersih dari jualan di marketplace bulan ini, belum termasuk biaya di luar marketplace (gaji, sewa, dsb)."]
+      ["Gross Sales", "Total nilai jual barang sebelum dikurangi diskon apa pun. Basis Kas: kolom “Subtotal sebelum diskon” di Data Pencairan, dijumlahkan per bulan Waktu Pembayaran. Basis Akrual: kolom “SKU Subtotal Before Discount” per baris SKU di Data Pesanan, dikelompokkan per bulan Created Time order."],
+      ["Sales Discounts", "Diskon yang ditanggung/didanai oleh kamu sendiri sebagai penjual (bukan yang disubsidi platform) &mdash; selalu jadi pengurang. Basis Kas: kolom “Diskon Penjual”. Basis Akrual: kolom “SKU Seller Discount” (kolom “SKU Platform Discount” sengaja tidak dikurangkan karena tidak mengurangi uang yang kamu terima)."],
+      ["Sales Returns", "Uang yang hilang akibat retur/refund, selalu jadi pengurang. Basis Kas: diambil langsung dari kolom “Subtotal Pengembalian Dana Setelah Diskon Penjual” (sudah dihitung setelah diskon penjual, supaya tidak dobel-hitung dengan Sales Discounts). Basis Akrual: dihitung proporsional &mdash; (Gross Sales &minus; Sales Discounts) &times; (qty yang diretur &divide; qty yang dipesan), dari kolom “Sku Quantity of return” &mdash; bukan dari kolom nominal refund langsung, karena kolom itu terbukti tidak konsisten terisi per baris SKU."],
+      ["Net Sales", "= Gross Sales &minus; Sales Discounts &minus; Sales Returns. Angka “omzet” utama yang dipakai di seluruh app (grafik tren, growth %, dsb) di kedua basis &mdash; menggantikan kolom “Total Pendapatan” yang dulu dipakai."],
+      ["COGS (Cost of Goods Sold)", "Harga modal (HPP) dari semua unit yang benar-benar terjual (qty net setelah retur) bulan itu, dicari dari Data Pesanan + Harga Modal SKU &mdash; caranya sama di kedua basis. Kalau ada SKU yang belum punya harga modal, COGS ditampilkan “&mdash;” sampai dilengkapi (tidak pernah ditampilkan sebagai Rp 0 yang menyesatkan)."],
+      ["Gross Profit", "= Net Sales &minus; COGS. Untung kotor dari jualan barangnya saja, belum dipotong biaya platform &mdash; sama di kedua basis."],
+      ["Platform Fee", "Semua potongan dari marketplace: komisi platform, komisi dinamis/iklan, biaya cashback, biaya pemrosesan pesanan, dan semua komponen ongkir. Basis Kas: dijumlah langsung per baris Data Pencairan bulan itu. Basis Akrual: dicari lewat pencocokan Order ID ke Data Pencairan &mdash; kalau belum ketemu, order itu berstatus Pending (piutang) dan fee-nya belum ikut terhitung."],
+      ["Operating Profit", "= Gross Profit &minus; Platform Fee (+/&minus; Adjustments di basis Kas). Angka paling bawah &mdash; untung bersih dari jualan di marketplace bulan ini, belum termasuk biaya di luar marketplace (gaji, sewa, dsb). Basis Akrual hanya menampilkan angka ini kalau SEMUA order bulan itu sudah Settled (Order Pending = 0) &mdash; kalau masih ada yang pending, ditampilkan “&mdash;”, sengaja tidak menampilkan angka yang understated/setengah-setengah."],
+      ["Adjustments (khusus Kas)", "Koreksi dari platform di luar Platform Fee &mdash; misalnya penggantian biaya logistik atau penggantian dana oleh platform (kompensasi). Bisa menambah atau mengurangi, tergantung jenis transaksinya. Tidak ada di basis Akrual &mdash; sengaja dikecualikan dari waterfall karena event reimbursement seperti ini tidak bisa dikaitkan dengan bersih ke tanggal order tertentu."],
+      ["Settlement Amount (khusus Kas)", "Bukan bagian dari waterfall &mdash; ini angka riil “Jumlah Penyelesaian Pembayaran” yang dilaporkan langsung oleh platform (uang yang benar-benar dicairkan). Dipakai sebagai cross-check: kalau beda jauh dari hasil hitungan Net Sales &minus; Platform Fee + Adjustments, itu sinyal ada baris/kolom yang perlu dicek ulang. Tidak ada padanannya di Akrual (kolom ini tidak ada di Data Pesanan)."],
+      ["Created Time (khusus Akrual)", "Waktu order DIBUAT (bukan dibayar/di-settle) &mdash; dasar pengelompokan bulan di basis Akrual. Diambil dari kolom “Created Time” di Data Pesanan."],
+      ["Order Settled (khusus Akrual)", "Order yang Platform Fee-nya sudah ketemu di Data Pencairan (berarti uangnya sudah cair)."],
+      ["Order Pending / piutang (khusus Akrual)", "Order yang penjualannya sudah tercatat (dari Data Pesanan) tapi Platform Fee-nya belum ketemu di Data Pencairan &mdash; biasanya karena belum diupload, atau order masih diproses/dikirim/menunggu pembayaran cair."],
+      ["Rincian Order (khusus Akrual)", "Order dipecah 4 kelompok: Settled&ndash;Selesai, Settled&ndash;Ada Retur, Pending&ndash;Selesai, Pending&ndash;Ada Retur. “Ada Retur” berarti minimal 1 baris SKU di order itu punya qty retur &gt; 0."]
     ];
     var termsHtml = terms.map(function (t) {
-      return "<div style=\"margin-bottom:12px;\"><div style=\"font-weight:700;margin-bottom:2px;\">" + t[0] + "</div><div style=\"color:var(--ink-muted);line-height:1.5;\">" + t[1] + "</div></div>";
-    }).join("");
-
-    // Istilah khusus Akrual -- konsep/kolom yang TIDAK ada padanannya di basis Kas, jadi
-    // sengaja dipisah dari glossary Kas di atas supaya tidak campur aduk.
-    var accrualTerms = [
-      ["Created Time", "Waktu order DIBUAT (bukan dibayar/di-settle) &mdash; dasar pengelompokan bulan di basis Akrual. Diambil dari kolom “Created Time” di Data Pesanan."],
-      ["Gross Sales / Sales Discounts (Akrual)", "Sumbernya beda dari basis Kas: Gross Sales dari kolom “SKU Subtotal Before Discount”, Sales Discounts dari “SKU Seller Discount” &mdash; keduanya per baris SKU di Data Pesanan. Kolom “SKU Platform Discount” sengaja TIDAK dikurangkan karena itu diskon yang ditanggung platform, bukan mengurangi uang yang kamu terima."],
-      ["Sales Returns (Akrual)", "Dihitung proporsional: (Gross Sales &minus; Sales Discounts) &times; (qty yang diretur &divide; qty yang dipesan), dari kolom “Sku Quantity of return”. Bukan dari kolom nominal refund langsung, karena kolom itu terbukti tidak konsisten terisi per baris SKU."],
-      ["Order Settled", "Order yang Platform Fee-nya sudah ketemu di Data Pencairan (berarti uangnya sudah cair)."],
-      ["Order Pending (piutang)", "Order yang penjualannya sudah tercatat (dari Data Pesanan) tapi Platform Fee-nya belum ketemu di Data Pencairan &mdash; biasanya karena belum diupload, atau order masih diproses/dikirim/menunggu pembayaran cair."],
-      ["Operating Profit (Akrual)", "Hanya dihitung &amp; ditampilkan kalau SEMUA order bulan itu sudah Settled (Order Pending = 0). Kalau masih ada yang pending, ditampilkan “&mdash;” &mdash; sengaja tidak ditampilkan angka yang understated/setengah-setengah."],
-      ["Rincian Order", "Order dipecah 4 kelompok: Settled&ndash;Selesai, Settled&ndash;Ada Retur, Pending&ndash;Selesai, Pending&ndash;Ada Retur. “Ada Retur” berarti minimal 1 baris SKU di order itu punya qty retur &gt; 0."]
-    ];
-    var accrualTermsHtml = accrualTerms.map(function (t) {
-      return "<div style=\"margin-bottom:12px;\"><div style=\"font-weight:700;margin-bottom:2px;\">" + t[0] + "</div><div style=\"color:var(--ink-muted);line-height:1.5;\">" + t[1] + "</div></div>";
+      return "<p style=\"break-inside:avoid;margin:0 0 14px;line-height:1.55;\"><b>" + t[0] + ".</b> <span style=\"color:var(--ink-muted);\">" + t[1] + "</span></p>";
     }).join("");
 
     return '<h3 style="' + sectionTitle + '">Kas vs Akrual</h3>' +
       compareHtml +
-      '<h3 style="' + sectionTitle + '">Penjelasan istilah akuntansi (basis Kas)</h3>' +
-      '<div class="note" style="margin-bottom:14px;">Urutan hitungnya (waterfall): <b>Gross Sales</b> &rarr; kurangi <b>Sales Discounts</b> &amp; <b>Sales Returns</b> &rarr; <b>Net Sales</b> &rarr; kurangi <b>COGS</b> &rarr; <b>Gross Profit</b> &rarr; kurangi <b>Platform Fee</b>, +/&minus; <b>Adjustments</b> &rarr; <b>Operating Profit</b>.</div>' +
-      termsHtml +
-      "<div style=\"margin-top:4px;margin-bottom:18px;\"><div style=\"font-weight:700;margin-bottom:2px;\">Settlement Amount</div><div style=\"color:var(--ink-muted);line-height:1.5;\">Bukan bagian dari waterfall di atas &mdash; ini angka riil “Jumlah Penyelesaian Pembayaran” yang dilaporkan langsung oleh platform (uang yang benar-benar dicairkan). Dipakai sebagai <b>cross-check</b>: kalau beda jauh dari hasil hitungan Net Sales &minus; Platform Fee + Adjustments, itu sinyal ada baris/kolom yang perlu dicek ulang.</div></div>" +
-      '<h3 style="' + sectionTitle + '">Istilah khusus Akrual</h3>' +
-      accrualTermsHtml;
+      '<h3 style="' + sectionTitle + '">Istilah akuntansi (Kas &amp; Akrual)</h3>' +
+      '<div class="note" style="margin-bottom:14px;">Urutan hitungnya (waterfall): <b>Gross Sales</b> &rarr; kurangi <b>Sales Discounts</b> &amp; <b>Sales Returns</b> &rarr; <b>Net Sales</b> &rarr; kurangi <b>COGS</b> &rarr; <b>Gross Profit</b> &rarr; kurangi <b>Platform Fee</b> (+/&minus; <b>Adjustments</b> di basis Kas) &rarr; <b>Operating Profit</b>. Istilah yang ditandai “(khusus ...)” tidak punya padanan di basis satunya.</div>' +
+      '<div class="glossary-columns">' + termsHtml + "</div>";
   }
 
   function missingSkusPanel() {
