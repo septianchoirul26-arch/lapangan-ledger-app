@@ -2763,7 +2763,7 @@
     var cancelBtn = document.getElementById("btn-cancel-storage");
     if (cancelBtn) cancelBtn.addEventListener("click", function () {
       document.getElementById("setup-screen").style.display = "none";
-      document.getElementById("store-tabs").style.display = "";
+      document.getElementById("store-tabs").style.display = "flex";
       document.getElementById("upload-section").style.display = "";
       document.getElementById("dashboard").style.display = "";
     });
@@ -2781,7 +2781,7 @@
       return;
     }
     document.getElementById("setup-screen").style.display = "none";
-    document.getElementById("store-tabs").style.display = "";
+    document.getElementById("store-tabs").style.display = "flex";
     document.getElementById("upload-section").style.display = "";
     document.getElementById("dashboard").style.display = "";
     render();
