@@ -2386,14 +2386,86 @@
   // Ambil sha file saat ini (dibutuhkan GitHub untuk update) -- null kalau file belum ada.
   // cache:"no-store" penting -- tanpa ini browser bisa nyajiin GET lama dari cache-nya sendiri,
   // bikin sha yang didapat selalu basi walau sudah retry berkali-kali (409 tidak pernah sembuh).
+  // Response-nya kecil TERLEPAS dari ukuran file (Contents API tidak menyertakan `content` untuk
+  // file besar kalau Accept bukan raw) -- makanya ini dipakai juga sebagai cek murah "apa
+  // datanya berubah?" di loadStateFromGithubCached() di bawah, tanpa perlu download semuanya.
   async function githubGetSha(cfg) {
     var res = await fetch(githubContentsUrl(cfg) + "?ref=" + encodeURIComponent(cfg.branch || "main"), {
       headers: githubHeaders(cfg), cache: "no-store"
     });
     if (res.status === 404) return null;
+    if (res.status === 401 || res.status === 403) throw new Error("Token GitHub ditolak (kadaluarsa/salah scope). Cek Pengaturan Penyimpanan.");
     if (!res.ok) throw new Error("Gagal cek file di GitHub (HTTP " + res.status + ").");
     var json = await res.json();
     return json.sha;
+  }
+
+  /* ================= Cache lokal (IndexedDB) =================
+     state.json bisa mencapai belasan MB begitu datanya banyak (bertahun-tahun pemakaian) --
+     tanpa cache, SETIAP buka app selalu download ulang seluruhnya walau tidak ada perubahan
+     sama sekali sejak terakhir dibuka. IndexedDB dipakai (bukan localStorage) karena localStorage
+     limitnya cuma ~5-10MB per origin di kebanyakan browser -- terlalu kecil untuk file sebesar
+     ini. Cache ini murni percepatan baca (best-effort): kalau gagal/tidak tersedia (private
+     browsing, quota, dsb), boot tetap jalan normal lewat fetch penuh seperti biasa, cuma tidak
+     dapat percepatannya -- tidak ada risiko kehilangan data karena ini bukan jalur tulis.
+     Divalidasi tiap boot lewat githubGetSha() (request kecil) -- kalau sha beda dari yang
+     dicache (ada perubahan dari device/browser lain), fetch penuh tetap dijalankan. */
+  var IDB_NAME = "ll_cache_v1", IDB_STORE = "boot", IDB_KEY = "state";
+
+  function idbOpen() {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) { reject(new Error("IndexedDB tidak tersedia")); return; }
+      var req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore(IDB_STORE); };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+
+  async function idbGetCache() {
+    try {
+      var db = await idbOpen();
+      return await new Promise(function (resolve) {
+        var tx = db.transaction(IDB_STORE, "readonly");
+        var req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+        req.onsuccess = function () { resolve(req.result || null); };
+        req.onerror = function () { resolve(null); };
+      });
+    } catch (e) { return null; } // best-effort -- tidak tersedia = anggap saja tidak ada cache
+  }
+
+  async function idbSetCache(value) {
+    try {
+      var db = await idbOpen();
+      await new Promise(function (resolve) {
+        var tx = db.transaction(IDB_STORE, "readwrite");
+        tx.objectStore(IDB_STORE).put(value, IDB_KEY);
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { resolve(); }; // gagal simpan cache tidak boleh mengganggu alur utama
+      });
+    } catch (e) { /* diamkan -- ini cuma optimasi, bukan jalur data yang wajib berhasil */ }
+  }
+
+  // Identitas config yang sedang dipakai -- cache cuma valid kalau owner/repo/path/branch-nya
+  // masih persis sama (ganti salah satu = dianggap sumber data lain, cache lama diabaikan).
+  function cfgCacheKey(cfg) {
+    return (cfg.owner || "") + "/" + (cfg.repo || "") + "/" + (cfg.path || "") + "@" + (cfg.branch || "main");
+  }
+
+  // Muat root, pakai cache lokal kalau sha-nya masih sama dengan yang di GitHub sekarang --
+  // menghindari download ulang file yang bisa belasan MB kalau memang tidak ada perubahan
+  // sejak terakhir dibuka di browser ini.
+  async function loadStateFromGithubCached(cfg) {
+    var cacheKey = cfgCacheKey(cfg);
+    var cached = await idbGetCache();
+    var sha = await githubGetSha(cfg); // request kecil, terlepas dari ukuran file aslinya
+    if (sha == null) return freshDefaultRoot(); // file belum pernah ada di GitHub
+    if (cached && cached.cacheKey === cacheKey && cached.sha === sha) {
+      return normalizeToRoot(cached.root); // cache hit -- tidak perlu download ulang sama sekali
+    }
+    var loadedRoot = await loadStateFromGithub(cfg); // cache miss/basi -- fetch penuh seperti biasa
+    idbSetCache({ cacheKey: cacheKey, sha: sha, root: loadedRoot });
+    return loadedRoot;
   }
 
   // Terima 3 kemungkinan bentuk file di GitHub: (1) belum ada sama sekali -> root kosong baru,
@@ -2457,6 +2529,11 @@
     }
     if (res.status === 401 || res.status === 403) throw new Error("Token GitHub ditolak (kadaluarsa/salah scope). Cek Pengaturan Penyimpanan.");
     if (!res.ok) throw new Error("Gagal menyimpan ke GitHub (HTTP " + res.status + ").");
+    // Kembalikan sha hasil commit ini -- dipakai persist() buat update cache lokal (lihat
+    // loadStateFromGithubCached()), supaya boot berikutnya di browser yang sama tidak perlu
+    // download ulang apa yang baru saja diupload sendiri.
+    var json = await res.json();
+    return json && json.content ? json.content.sha : null;
   }
 
   // Antrean supaya persist() yang dipanggil hampir bersamaan (mis. upload ke beberapa dropzone
@@ -2475,13 +2552,16 @@
                                // di-persist terpisah oleh panggilan lain (lihat persistQueue)
     var task = persistQueue.then(function () { return saveStateToGithub(cfg, stateSnapshot); });
     persistQueue = task.catch(function () {}); // 1 kegagalan tidak boleh menyumbat antrean berikutnya
+    var newSha;
     try {
-      await task;
+      newSha = await task;
     } catch (e) {
       console.error("Gagal menyimpan ke GitHub:", e);
       showToast("Data terhitung, tapi gagal disimpan permanen: " + e.message);
       return;
     }
+    // Update cache lokal dengan hasil simpan ini juga -- best-effort, lihat loadStateFromGithubCached().
+    if (newSha) idbSetCache({ cacheKey: cfgCacheKey(cfg), sha: newSha, root: stateSnapshot });
     if (toastMsg) showToast(toastMsg);
   }
 
@@ -2792,7 +2872,7 @@
   // Dipanggil baik dari boot awal (init()) maupun setelah user simpan Pengaturan Penyimpanan.
   async function bootWithConfig(cfg) {
     try {
-      root = await loadStateFromGithub(cfg);
+      root = await loadStateFromGithubCached(cfg);
       state = root.stores[root.activeStore];
     } catch (e) {
       console.error("Gagal memuat dari GitHub:", e);
