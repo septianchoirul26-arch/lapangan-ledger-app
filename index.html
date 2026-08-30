@@ -205,6 +205,14 @@
   table.months tbody tr.expanded { background: var(--accent-soft); }
   .month-name { font-family: var(--body); font-weight: 600; text-align: left; }
   .table-scroll { overflow-x: auto; }
+
+  /* ---- Tabel "compact" (tab Gabungan) -- 2 tabel 9-kolom bersebelahan dalam 1 halaman butuh
+     lebih hemat ruang dari tabel per-toko biasa: font & padding lebih kecil, header dipendekkan
+     (title="..." nyimpen nama lengkapnya buat tooltip). table-scroll tetap jadi jaring pengaman
+     kalau layarnya sempit banget, bukan scroll yang muncul dalam pemakaian normal. ---- */
+  table.months.compact { font-size: 12px; }
+  table.months.compact th { font-size: 10px; padding: 7px 8px; }
+  table.months.compact td { padding: 7px 8px; }
   .pill {
     display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
     font-family: var(--body);
@@ -220,6 +228,11 @@
   @media (max-width: 760px) { .detail-grid { grid-template-columns: 1fr; } }
   .basis-compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 18px; }
   @media (max-width: 700px) { .basis-compare-grid { grid-template-columns: 1fr; } }
+  /* Grid item lebar konten alaminya (tabel, SVG chart) tidak boleh memaksa track "1fr" melebar
+     lebih dari jatahnya -- default grid item punya min-width:auto (dibatasi konten), bukan 0.
+     Tanpa ini, tabel lebar di salah satu sisi bikin SELURUH HALAMAN scroll horizontal, padahal
+     harusnya cukup tabelnya sendiri yang scroll (lihat .table-scroll) di dalam kolomnya. */
+  .basis-compare-grid > * { min-width: 0; }
   .basis-compare-col { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
   .basis-compare-col h4 { margin: 0 0 8px; font-size: 14px; }
   .basis-compare-col .formula { font-family: var(--mono); font-size: 12px; background: var(--surface-raised); border-radius: 6px; padding: 8px 10px; margin: 8px 0; line-height: 1.6; }
@@ -1750,26 +1763,47 @@
   var expandedMonth = null;
   var accountingHelpOpen = false;
   var basisMode = "cash"; // "cash" | "accrual" -- lihat renderDashboard() & computeMonthlyAccrual()
+  // Tab ke-4 "Gabungan" (semua toko) -- BUKAN toko sungguhan, jadi sengaja tidak lewat
+  // switchStore()/root.activeStore (itu cuma boleh berisi id toko asli, lihat normalizeToRoot()).
+  // Ini murni flag UI, tidak dipersist -- boot ulang selalu balik ke toko yang terakhir aktif.
+  var showingCombined = false;
 
   function render() {
     renderStoreTabs();
-    renderUploadStatus();
-    renderLog();
-    renderDashboard();
+    if (showingCombined) {
+      document.getElementById("upload-section").style.display = "none";
+      renderCombinedDashboard();
+    } else {
+      document.getElementById("upload-section").style.display = "";
+      renderUploadStatus();
+      renderLog();
+      renderDashboard();
+    }
     renderFooter();
   }
 
   function renderStoreTabs() {
     var el = document.getElementById("store-tabs");
     if (!el) return;
-    el.innerHTML = STORE_DEFS.map(function (s) {
-      var active = s.id === root.activeStore;
+    var tabsHtml = STORE_DEFS.map(function (s) {
+      var active = !showingCombined && s.id === root.activeStore;
       return '<button class="btn small store-tab' + (active ? " primary" : "") + '" type="button" data-store="' + esc(s.id) + '">' + esc(s.name) + "</button>";
     }).join("");
+    tabsHtml += '<button class="btn small store-tab' + (showingCombined ? " primary" : "") + '" type="button" data-store="__all__">Gabungan</button>';
+    el.innerHTML = tabsHtml;
     el.querySelectorAll(".store-tab").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var id = btn.getAttribute("data-store");
+        if (id === "__all__") {
+          if (showingCombined) return;
+          showingCombined = true;
+          render();
+          return;
+        }
+        var wasCombined = showingCombined;
+        showingCombined = false;
         if (id !== root.activeStore) switchStore(id);
+        else if (wasCombined) render();
       });
     });
   }
@@ -1814,9 +1848,11 @@
   }
 
   function renderFooter() {
-    var storeLabel = "Toko aktif: " + storeName(root.activeStore);
-    document.getElementById("footer-stats").textContent = storeLabel +
-      (state.pencairanRows.length ? " · " + state.pencairanRows.length.toLocaleString("id-ID") + " baris pencairan tersimpan" : "");
+    var text = showingCombined
+      ? "Tampilan: Gabungan (" + STORE_DEFS.length + " toko)"
+      : "Toko aktif: " + storeName(root.activeStore) +
+        (state.pencairanRows.length ? " · " + state.pencairanRows.length.toLocaleString("id-ID") + " baris pencairan tersimpan" : "");
+    document.getElementById("footer-stats").textContent = text;
   }
 
   var ACCRUAL_SERIES = [
@@ -1875,6 +1911,96 @@
     document.getElementById("basis-accrual-btn").addEventListener("click", function () {
       if (basisMode === "accrual") return;
       basisMode = "accrual"; expandedMonth = null; renderDashboard();
+    });
+  }
+
+  /* ================= Tab "Gabungan" (3 toko) =================
+     1 halaman, 2 sisi -- tabel Kas gabungan (kiri) & Akrual gabungan (kanan), tanpa toggle
+     kas/akrual (dua-duanya sekaligus tampil). Baris di-klik -> expand tabel breakdown per toko
+     (bukan waterfall biaya seperti tabel per-toko), lihat monthDetailCombined(). Expand state
+     dipisah per sisi (cash/accrual) karena kedua tabel tampil bersamaan di 1 halaman. */
+  var expandedCombinedYm = { cash: null, accrual: null };
+
+  var COMBINED_CASH_SERIES = [
+    { key: "netSales", color: "var(--ink-faint)", label: "Net Sales" },
+    { key: "hppTotalDisplay", color: "var(--warn)", label: "COGS" },
+    { key: "operatingProfit", color: "var(--accent)", label: "Operating Profit" }
+  ];
+  var COMBINED_ACCRUAL_SERIES = COMBINED_CASH_SERIES;
+
+  function renderCombinedDashboard() {
+    var host = document.getElementById("dashboard");
+    var cash = computeCombinedCash();
+    var accrual = computeCombinedAccrual();
+    if (!cash.length && !accrual.length) {
+      host.innerHTML = '<div class="card empty"><div class="big">Belum ada data</div>' +
+        "Upload data di salah satu toko dulu untuk mulai melihat ringkasan gabungan di sini.</div>";
+      return;
+    }
+    function side(kind, label, list) {
+      if (!list.length) return '<div><h3 style="font-size:14px;margin-bottom:10px;">' + label + '</h3><div class="card empty" style="padding:20px;"><div class="big" style="font-size:14px;">Belum ada data</div></div></div>';
+      return '<div><h3 style="font-size:14px;margin-bottom:10px;">' + label + '</h3>' +
+        '<div class="card chart-card" style="margin-bottom:14px;">' + trendChart(list, kind === "cash" ? COMBINED_CASH_SERIES : COMBINED_ACCRUAL_SERIES) + "</div>" +
+        '<div class="card table-scroll">' + monthTableCombined(list, kind) + "</div></div>";
+    }
+    host.innerHTML = '<section><div class="basis-compare-grid" style="align-items:start;">' +
+      side("cash", "Kas (Gabungan)", cash) +
+      side("accrual", "Akrual (Gabungan)", accrual) +
+      "</div></section>";
+    attachCombinedRowHandlers();
+  }
+
+  function monthTableCombined(months, kind) {
+    var rows = months.slice().reverse().map(function (m) {
+      var qualityCls = m.matchRate >= 0.9 ? "good" : m.matchRate >= 0.6 ? "warn" : "bad";
+      var expanded = expandedCombinedYm[kind] === m.ym;
+      var g = m.growth || {};
+      var main = '<tr data-ym="' + m.ym + '" data-kind="' + kind + '" class="' + (expanded ? "expanded" : "") + '">' +
+        '<td class="month-name">' + monthLabel(m.ym) + "</td>" +
+        "<td>" + rp(m.netSales) + "</td>" +
+        growthCell(g.netSales) +
+        "<td>" + rpOrDash(m.hppTotalDisplay) + "</td>" +
+        "<td>" + rpOrDash(m.grossProfit) + "</td>" +
+        "<td>" + rp(m.platformFee) + "</td>" +
+        "<td>" + rpOrDash(m.operatingProfit) + "</td>" +
+        "<td>" + pctOrDash(m.margin) + "</td>" +
+        '<td><span class="pill ' + qualityCls + '" title="Kualitas Data">' + pct(m.matchRate) + " match</span></td>" +
+        "</tr>";
+      var detail = expanded ? '<tr class="detail-row"><td colspan="9"><div class="detail-wrap">' + monthDetailCombined(m) + "</div></td></tr>" : "";
+      return main + detail;
+    }).join("");
+    return '<table class="months compact"><thead><tr>' +
+      '<th>Bulan</th><th title="Net Sales">Net Sales</th><th title="Δ Net Sales">Δ</th>' +
+      '<th title="COGS">COGS</th><th title="Gross Profit">Gr. Profit</th><th title="Platform Fee">Fee</th>' +
+      '<th title="Operating Profit">Op. Profit</th><th title="Margin">Margin</th><th title="Kualitas Data">Match%</th>' +
+      "</tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+
+  // Beda dengan monthDetail()/monthDetailAccrual() (waterfall biaya) -- ini cuma breakdown
+  // angka yang sama persis per toko, sesuai permintaan user: tanpa catatan tambahan apa pun.
+  function monthDetailCombined(m) {
+    var rows = STORE_DEFS.map(function (s) {
+      var r = m.perStore[s.id];
+      return "<tr><td class=\"month-name\">" + esc(s.name) + "</td>" +
+        "<td>" + rp(r.netSales) + "</td>" +
+        "<td>" + rpOrDash(r.hppTotal) + "</td>" +
+        "<td>" + rpOrDash(r.grossProfit) + "</td>" +
+        "<td>" + rp(r.platformFee) + "</td>" +
+        "<td>" + rpOrDash(r.operatingProfit) + "</td>" +
+        "<td>" + pctOrDash(r.margin) + "</td></tr>";
+    }).join("");
+    return '<table class="months compact" style="width:100%;"><thead><tr>' +
+      "<th>Toko</th><th>Net Sales</th><th>COGS</th><th>Gross Profit</th><th>Platform Fee</th><th>Operating Profit</th><th>Margin</th>" +
+      "</tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+
+  function attachCombinedRowHandlers() {
+    document.querySelectorAll("table.months tbody tr[data-ym]").forEach(function (tr) {
+      tr.addEventListener("click", function () {
+        var ym = tr.getAttribute("data-ym"), kind = tr.getAttribute("data-kind");
+        expandedCombinedYm[kind] = expandedCombinedYm[kind] === ym ? null : ym;
+        renderCombinedDashboard();
+      });
     });
   }
 
@@ -2702,6 +2828,113 @@
     var months = computeMonthlyAccrual();
     state = savedState;
     return months;
+  }
+
+  /* ================= Gabungan 3 toko (tab "Gabungan") =================
+     BUKAN hitungan baru dari baris mentah -- murni menjumlahkan angka yang SUDAH dihasilkan
+     computeMonthlyForStore()/computeMonthlyAccrualForStore() per toko (angka yang sama persis
+     yang tampil di tabel Rincian tiap toko). Toko yang belum punya baris di suatu bulan
+     dianggap kontribusi Rp0 (bukan "belum diketahui") -- keputusan eksplisit user, lihat diskusi.
+     Gross Profit/Operating Profit gabungan sengaja null (tampil "—") kalau SALAH SATU toko yang
+     punya data bulan itu juga null -- angka pasti + angka belum diketahui = tetap belum diketahui,
+     tidak boleh dijumlah pura-pura pasti. */
+  function combineByYm(perStore) {
+    var byYm = {};
+    STORE_DEFS.forEach(function (s) {
+      perStore[s.id].forEach(function (m) {
+        (byYm[m.ym] = byYm[m.ym] || {})[s.id] = m;
+      });
+    });
+    return byYm;
+  }
+
+  function computeCombinedCash() {
+    var perStore = {};
+    STORE_DEFS.forEach(function (s) { perStore[s.id] = computeMonthlyForStore(s.id); });
+    var byYm = combineByYm(perStore);
+    var list = Object.keys(byYm).map(function (ym) {
+      var netSales = 0, platformFee = 0, hppTotal = 0, allComplete = true;
+      var ordersMatched = 0, ordersTotal = 0;
+      var perStoreRow = {};
+      STORE_DEFS.forEach(function (s) {
+        var m = byYm[ym][s.id]; // undefined = toko belum punya data bulan ini -> dianggap 0
+        var sNetSales = m ? m.pendapatan : 0;
+        var sComplete = m ? m.hppComplete : true;
+        var sHppTotal = m && sComplete ? m.hppTotal : 0;
+        var sGrossProfit = m ? (sComplete ? m.labaKotor : null) : 0;
+        var sPlatformFee = m ? m.biayaTotal : 0;
+        var sOperatingProfit = m ? (sComplete ? m.labaUsaha : null) : 0;
+        netSales += sNetSales; platformFee += sPlatformFee; hppTotal += sHppTotal;
+        if (!sComplete) allComplete = false;
+        if (m) { ordersMatched += m.ordersMatched; ordersTotal += m.ordersMatched + m.ordersUnmatched; }
+        perStoreRow[s.id] = {
+          netSales: sNetSales, hppTotal: sComplete ? sHppTotal : null, grossProfit: sGrossProfit,
+          platformFee: sPlatformFee, operatingProfit: sOperatingProfit,
+          margin: (sOperatingProfit != null && sNetSales) ? sOperatingProfit / sNetSales : null
+        };
+      });
+      var grossProfit = allComplete ? netSales - hppTotal : null;
+      var operatingProfit = allComplete ? grossProfit + platformFee : null; // Adjustments sudah
+        // ikut terjumlah di dalam labaUsaha tiap toko (lihat computeMonthly()), jadi tidak perlu
+        // dikurangi/ditambah lagi terpisah di sini -- konsisten dengan tabel per-toko yang juga
+        // tidak menampilkan kolom Adjustments di tabel utama, cuma di rincian waterfall.
+      return {
+        ym: ym, netSales: netSales, hppTotal: allComplete ? hppTotal : null, hppComplete: allComplete,
+        hppTotalDisplay: allComplete ? hppTotal : null,
+        grossProfit: grossProfit, platformFee: platformFee, operatingProfit: operatingProfit,
+        margin: (operatingProfit != null && netSales) ? operatingProfit / netSales : null,
+        matchRate: ordersTotal ? ordersMatched / ordersTotal : 0,
+        perStore: perStoreRow
+      };
+    });
+    list.sort(function (a, b) { return a.ym < b.ym ? -1 : 1; });
+    function growthPct(curr, prev) { return (curr == null || prev == null || !prev) ? null : (curr - prev) / Math.abs(prev); }
+    list.forEach(function (m, i) { m.growth = i > 0 ? { netSales: growthPct(m.netSales, list[i - 1].netSales) } : null; });
+    return list;
+  }
+
+  function computeCombinedAccrual() {
+    var perStore = {};
+    STORE_DEFS.forEach(function (s) { perStore[s.id] = computeMonthlyAccrualForStore(s.id); });
+    var byYm = combineByYm(perStore);
+    var list = Object.keys(byYm).map(function (ym) {
+      var netSales = 0, platformFee = 0, hppTotal = 0, allComplete = true, allSettled = true;
+      var ordersMatched = 0, ordersTotal = 0;
+      var perStoreRow = {};
+      STORE_DEFS.forEach(function (s) {
+        var m = byYm[ym][s.id]; // undefined = toko belum punya data bulan ini -> dianggap 0
+        var sNetSales = m ? m.netSales : 0;
+        var sComplete = m ? m.hppComplete : true;
+        var sSettled = m ? m.ordersPending === 0 : true;
+        var sHppTotal = m && sComplete ? m.hppTotal : 0;
+        var sGrossProfit = m ? (sComplete ? m.grossProfit : null) : 0;
+        var sPlatformFee = m ? m.biayaTotal : 0;
+        var sOperatingProfit = m ? m.operatingProfit : 0; // sudah null sendiri dari sumbernya kalau belum lengkap/settle
+        netSales += sNetSales; platformFee += sPlatformFee; hppTotal += sHppTotal;
+        if (!sComplete) allComplete = false;
+        if (!sSettled) allSettled = false;
+        if (m) { ordersMatched += m.ordersMatched; ordersTotal += m.ordersMatched + m.ordersUnmatched; }
+        perStoreRow[s.id] = {
+          netSales: sNetSales, hppTotal: sComplete ? sHppTotal : null, grossProfit: sGrossProfit,
+          platformFee: sPlatformFee, operatingProfit: sOperatingProfit,
+          margin: (sOperatingProfit != null && sNetSales) ? sOperatingProfit / sNetSales : null
+        };
+      });
+      var grossProfit = allComplete ? netSales - hppTotal : null;
+      var operatingProfit = (allComplete && allSettled) ? grossProfit + platformFee : null;
+      return {
+        ym: ym, netSales: netSales, hppTotal: allComplete ? hppTotal : null, hppComplete: allComplete,
+        hppTotalDisplay: allComplete ? hppTotal : null,
+        grossProfit: grossProfit, platformFee: platformFee, operatingProfit: operatingProfit,
+        margin: (operatingProfit != null && netSales) ? operatingProfit / netSales : null,
+        matchRate: ordersTotal ? ordersMatched / ordersTotal : 0,
+        perStore: perStoreRow
+      };
+    });
+    list.sort(function (a, b) { return a.ym < b.ym ? -1 : 1; });
+    function growthPct(curr, prev) { return (curr == null || prev == null || !prev) ? null : (curr - prev) / Math.abs(prev); }
+    list.forEach(function (m, i) { m.growth = i > 0 ? { netSales: growthPct(m.netSales, list[i - 1].netSales) } : null; });
+    return list;
   }
 
   var RINGKASAN_HEADERS_ACCRUAL = ["Bulan", "Toko", "Gross Sales", "Sales Discounts", "Sales Returns", "Net Sales",
