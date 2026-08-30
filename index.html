@@ -136,7 +136,7 @@
   @media (max-width: 880px) { .upload-grid { grid-template-columns: 1fr; } }
   .dropzone {
     padding: 18px; display: flex; flex-direction: column; gap: 6px; position: relative;
-    border-style: dashed; border-color: var(--line-strong);
+    border-style: dashed; border-color: var(--line-strong); border-radius: var(--radius);
   }
   .dropzone.drag-over { border-color: var(--accent); background: var(--accent-soft); }
   .dropzone .dz-icon {
@@ -147,9 +147,24 @@
   .dropzone h3 { font-size: 14.5px; }
   .dropzone p { margin: 0; font-size: 12.5px; color: var(--ink-faint); line-height: 1.45; }
   .dropzone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .dropzone .status-line { font-size: 12px; margin-top: 4px; font-weight: 600; }
-  .dropzone .status-line.ok { color: var(--good); }
-  .dropzone .status-line.warn { color: var(--warn); }
+
+  /* ---- Dropzone utama (Data Pencairan/Pesanan) -- kartu horizontal, ikon bulat + pill status */
+  .dz-upload { flex-direction: row; align-items: flex-start; gap: 14px; padding: 16px 18px; transition: border-color .15s, background .15s; }
+  .dz-upload:hover, .dz-upload:focus-within { border-color: var(--accent); background: var(--accent-soft); }
+  .dz-upload .dz-icon-circle {
+    width: 38px; height: 38px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; flex: none; margin: 0;
+  }
+  .dz-upload .dz-body { flex: 1; min-width: 0; }
+  .dz-upload .dz-body .row1 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .dz-upload .dz-body h3 { font-size: 14.5px; }
+  .dz-upload .dz-body .pill-count {
+    font-size: 11.5px; font-weight: 700; color: var(--good); background: var(--accent-soft);
+    padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  }
+  .dz-upload .dz-body .pill-count:empty { display: none; }
+  .dz-upload .dz-body p { margin: 4px 0 0; }
+  .dz-upload .dz-body .dz-cta { margin-top: 8px; font-size: 11.5px; color: var(--accent); font-weight: 600; }
 
   .log {
     margin-top: 14px; font-size: 12.5px; color: var(--ink-muted);
@@ -337,19 +352,27 @@
       <span class="hint">Format CSV atau XLSX &middot; data digabung otomatis ke riwayat</span>
     </div>
     <div class="card upload-grid" style="grid-template-columns: repeat(2, 1fr);">
-      <div class="dropzone" id="dz-pencairan">
+      <div class="dropzone dz-upload" id="dz-pencairan">
         <input type="file" id="file-pencairan" accept=".csv,.xlsx" multiple />
-        <span class="dz-icon">Rp</span>
-        <h3>Data Pencairan</h3>
-        <p>Export "Income" dari Seller Center. Sumber Net Sales &amp; Platform Fee bulanan.</p>
-        <div class="status-line" id="status-pencairan"></div>
+        <span class="dz-icon-circle">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        </span>
+        <div class="dz-body">
+          <div class="row1"><h3>Data Pencairan</h3><span class="pill-count" id="status-pencairan"></span></div>
+          <p>Export "Income" dari Seller Center. Sumber Net Sales &amp; Platform Fee bulanan.</p>
+          <div class="dz-cta">Klik atau tarik file ke sini &rarr;</div>
+        </div>
       </div>
-      <div class="dropzone" id="dz-pesanan">
+      <div class="dropzone dz-upload" id="dz-pesanan">
         <input type="file" id="file-pesanan" accept=".csv,.xlsx" multiple />
-        <span class="dz-icon">#</span>
-        <h3>Data Pesanan</h3>
-        <p>Export daftar pesanan (Order ID, SKU ID, Qty). Dipakai untuk mencari HPP tiap order.</p>
-        <div class="status-line" id="status-pesanan"></div>
+        <span class="dz-icon-circle">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        </span>
+        <div class="dz-body">
+          <div class="row1"><h3>Data Pesanan</h3><span class="pill-count" id="status-pesanan"></span></div>
+          <p>Export daftar pesanan (Order ID, SKU ID, Qty). Dipakai untuk mencari HPP tiap order.</p>
+          <div class="dz-cta">Klik atau tarik file ke sini &rarr;</div>
+        </div>
       </div>
     </div>
     <div class="card" style="padding: 14px 18px;">
@@ -1731,9 +1754,7 @@
     var oCount = Object.keys(state.orderMaster).length;
     var mCount = Object.keys(state.skuCost).length;
     document.getElementById("status-pencairan").textContent = pCount ? pCount.toLocaleString("id-ID") + " baris tersimpan" : "";
-    document.getElementById("status-pencairan").className = "status-line" + (pCount ? " ok" : "");
     document.getElementById("status-pesanan").textContent = oCount ? oCount.toLocaleString("id-ID") + " order dikenal" : "";
-    document.getElementById("status-pesanan").className = "status-line" + (oCount ? " ok" : "");
     document.getElementById("status-modal").textContent = mCount ? mCount.toLocaleString("id-ID") + " SKU sudah punya harga modal" : "";
   }
 
