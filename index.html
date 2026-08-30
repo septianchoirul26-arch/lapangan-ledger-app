@@ -136,7 +136,7 @@
   @media (max-width: 880px) { .upload-grid { grid-template-columns: 1fr; } }
   .dropzone {
     padding: 18px; display: flex; flex-direction: column; gap: 6px; position: relative;
-    border-style: dashed; border-color: var(--line-strong); border-radius: var(--radius);
+    border-radius: var(--radius);
   }
   .dropzone.drag-over { border-color: var(--accent); background: var(--accent-soft); }
   .dropzone .dz-icon {
@@ -148,8 +148,15 @@
   .dropzone p { margin: 0; font-size: 12.5px; color: var(--ink-faint); line-height: 1.45; }
   .dropzone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
-  /* ---- Dropzone utama (Data Pencairan/Pesanan) -- kartu horizontal, ikon bulat + pill status */
-  .dz-upload { flex-direction: row; align-items: flex-start; gap: 14px; padding: 16px 18px; transition: border-color .15s, background .15s; }
+  /* ---- Dropzone utama (Data Pencairan/Pesanan) -- kartu horizontal terpisah, ikon bulat + pill status.
+     Masing-masing kartu sendiri (border solid + background + shadow, sama seperti .card lain) --
+     dulu 1 card besar dengan dashed border di antara keduanya, sekarang beneran 2 kotak terpisah
+     dengan celah warna background di antaranya (lihat .upload-grid, tidak lagi punya class "card"). */
+  .dz-upload {
+    flex-direction: row; align-items: flex-start; gap: 14px; padding: 16px 18px;
+    border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow);
+    transition: border-color .15s, background .15s;
+  }
   .dz-upload:hover, .dz-upload:focus-within { border-color: var(--accent); background: var(--accent-soft); }
   .dz-upload .dz-icon-circle {
     width: 38px; height: 38px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
@@ -351,7 +358,7 @@
       <h2>Unggah data bulanan</h2>
       <span class="hint">Format CSV atau XLSX &middot; data digabung otomatis ke riwayat</span>
     </div>
-    <div class="card upload-grid" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="upload-grid" style="grid-template-columns: repeat(2, 1fr);">
       <div class="dropzone dz-upload" id="dz-pencairan">
         <input type="file" id="file-pencairan" accept=".csv,.xlsx" multiple />
         <span class="dz-icon-circle">
@@ -375,7 +382,7 @@
         </div>
       </div>
     </div>
-    <div class="card" style="padding: 14px 18px;">
+    <div class="card" style="padding: 14px 18px; margin-top: 18px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div id="modal-toggle" role="button" tabindex="0" aria-expanded="false" style="cursor:pointer;display:flex;align-items:baseline;gap:8px;">
           <h3 style="font-size:14.5px;">Harga Modal SKU</h3>
