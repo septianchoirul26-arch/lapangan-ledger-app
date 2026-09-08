@@ -290,6 +290,9 @@
   .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
   .icon-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
   .icon-btn.lg { width: 30px; height: 30px; }
+  .icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .icon-btn:disabled:hover { border-color: var(--line-strong); color: var(--ink-muted); }
+  #store-tabs.busy { pointer-events: none; opacity: 0.6; }
 
   .dropdown-menu {
     display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
@@ -325,6 +328,10 @@
     border: 3px solid var(--line); border-top-color: var(--accent);
     animation: spin .7s linear infinite;
   }
+  /* Versi kecil, muat di dalam tombol ikon 30px -- dipakai buat indikator "sedang menyimpan"
+     di aksi merusak seperti Reset Data (lihat setDataActionBusy()), supaya user tidak
+     refresh/pindah sebelum simpan ke GitHub-nya beneran selesai. */
+  .spinner.sm { width: 14px; height: 14px; border-width: 2px; margin: 0; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   @media (prefers-reduced-motion: reduce) {
@@ -2689,6 +2696,24 @@
     showToast._h = setTimeout(function () { t.className = "toast"; }, 2600);
   }
 
+  // Indikator "sedang menyimpan" buat aksi data yang butuh waktu ke GitHub (dipakai Reset Data).
+  // Tanpa ini, halaman kelihatan "sudah selesai" begitu render() lokal jalan, padahal simpan ke
+  // GitHub-nya masih berjalan async di belakang layar -- kalau user refresh/pindah di jendela
+  // itu, request-nya ikut terputus dan perubahannya BATAL tersimpan (root cause bug "reset data
+  // tidak hilang" yang dilaporkan user). Selama busy: tombol header lain + tab toko ikut dikunci
+  // supaya tidak ada aksi lain menyusul menimpa antrean simpan yang sama.
+  var RESET_ICON_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
+  function setDataActionBusy(isBusy) {
+    var resetBtn = document.getElementById("btn-reset");
+    resetBtn.disabled = isBusy;
+    resetBtn.title = isBusy ? "Menghapus & menyimpan..." : "Reset data";
+    resetBtn.innerHTML = isBusy ? '<span class="spinner sm"></span>' : RESET_ICON_SVG;
+    ["btn-backup-toggle", "btn-export-xlsx", "btn-storage-settings"].forEach(function (id) {
+      document.getElementById(id).disabled = isBusy;
+    });
+    document.getElementById("store-tabs").classList.toggle("busy", isBusy);
+  }
+
   // Lewat platform downloads capability kalau dihosting sebagai Artifact (sandbox-nya blokir
   // <a download> biasa -- lihat README "Persistensi data"), fallback ke blob-download biasa
   // kalau dibuka sebagai file lokal.
@@ -3159,7 +3184,10 @@
       if (!confirm("Hapus semua data toko \"" + storeName(root.activeStore) + "\" yang tersimpan? Toko lain tidak terpengaruh. Tindakan ini tidak bisa dibatalkan.")) return;
       state = freshDefaultState();
       root.stores[root.activeStore] = state;
-      persist("Data toko " + storeName(root.activeStore) + " direset.");
+      setDataActionBusy(true);
+      persist("Data toko " + storeName(root.activeStore) + " direset.").finally(function () {
+        setDataActionBusy(false);
+      });
     });
 
     // Tombol Download/Upload Cadangan digabung di balik 1 ikon (dropdown kecil) supaya header
