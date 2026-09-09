@@ -282,7 +282,12 @@
     font-variant-numeric: tabular-nums; text-align: right;
   }
   .materials-list input[type=number]:focus { outline: none; border-color: var(--accent); }
-  .materials-add-row { display: flex; gap: 8px; margin-top: 12px; }
+  .materials-list select {
+    padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 6px;
+    background: var(--surface); color: var(--ink); font-family: var(--body); font-size: 12px; max-width: 230px;
+  }
+  .materials-list select:focus { outline: none; border-color: var(--accent); }
+  .materials-add-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
   .materials-add-row input[type=text] {
     flex: 1; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 6px;
     background: var(--surface); color: var(--ink); font-family: var(--body); font-size: 13px;
@@ -292,6 +297,11 @@
     background: var(--surface); color: var(--ink); font-family: var(--mono); font-size: 13px;
   }
   .materials-add-row input:focus { outline: none; border-color: var(--accent); }
+  .materials-add-row select {
+    padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 6px;
+    background: var(--surface); color: var(--ink); font-family: var(--body); font-size: 13px; max-width: 260px;
+  }
+  .materials-add-row select:focus { outline: none; border-color: var(--accent); }
 
   .field { margin-bottom: 14px; }
   .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-muted); margin-bottom: 5px; }
@@ -457,15 +467,16 @@
           <span class="icon-btn" style="cursor:pointer;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
           </span>
-          <p style="margin:0;">Upload file dengan kolom <code>ID SKU</code> dan <code>Harga Modal</code> (atau <code>Harga Produk Utama</code> + kolom per bahan kemasan, lihat ikon <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path></svg> di atas). Boleh diupload ulang kapan saja untuk menambah SKU baru atau update harga yang sudah ada.</p>
+          <p style="margin:0;">Upload file dengan kolom <code>ID SKU</code> dan <code>Harga Modal</code> (atau <code>Harga Produk</code> + <code>Kategori</code> + <code>Ukuran</code> + <code>Tipe Paket</code> supaya biaya packing dihitung otomatis per pesanan, lihat ikon <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path></svg> di atas). Boleh diupload ulang kapan saja untuk menambah SKU baru atau update harga yang sudah ada.</p>
         </div>
         <div id="modal-conflicts"></div>
       </div>
       <div class="help-body" id="materials-body">
-        <p class="note" style="margin:0 0 10px;">Daftar bahan kemasan &amp; harga per unit &mdash; <b>bersama untuk ketiga toko</b>. Dipakai buat hitung otomatis Harga Modal SKU kalau kamu upload file "format lebar" (kolom <code>Harga Produk Utama</code> + 1 kolom per bahan berisi qty). Ubah harga di sini otomatis meng-update ulang semua SKU yang pakai bahan itu.</p>
+        <p class="note" style="margin:0 0 10px;">Daftar bahan kemasan &amp; harga per unit &mdash; <b>bersama untuk ketiga toko</b>. "Cara Hitung" nentuin berapa qty bahan itu dipakai per PESANAN (bukan per SKU) &mdash; lihat penjelasan tiap pilihan lewat ikon "?" di sebelah kolom Harga Modal SKU. Ubah harga/cara hitung di sini langsung berlaku ke semua bulan begitu halaman di-refresh, tidak perlu upload ulang apa pun.</p>
         <ul class="materials-list" id="materials-list"></ul>
         <div class="materials-add-row">
           <input type="text" id="material-new-name" placeholder="Nama bahan baru (mis. Plastik Kecil)" />
+          <select id="material-new-cara"></select>
           <input type="number" id="material-new-cost" placeholder="Harga/unit" min="0" step="1" />
           <button class="btn small primary" id="btn-add-material" type="button">Tambah</button>
         </div>
@@ -479,8 +490,8 @@
         <p><b>Data Pesanan</b> (CSV dari daftar pesanan) &mdash; wajib ada kolom: <code>Order ID</code>, <code>SKU ID</code>, <code>Quantity</code>, <code>Product Name</code>.
           Upload data pesanan untuk periode order dibuat yang cukup jauh ke belakang (2&ndash;3 bulan sebelum bulan pencairan pertama) supaya order lama yang baru cair tetap ketemu SKU-nya.</p>
         <p><b>Harga Modal SKU</b> &mdash; 2 format didukung, boleh dicampur/upload ulang kapan saja:</p>
-        <p style="margin-left:14px;">1. <b>Format flat</b> (lama) &mdash; 2 kolom: <code>ID SKU</code> dan <code>Harga Modal</code>. Angka langsung dipakai apa adanya.</p>
-        <p style="margin-left:14px;">2. <b>Format breakdown</b> (baru) &mdash; kolom <code>ID SKU</code>, <code>Harga Produk Utama</code>, lalu 1 kolom per nama bahan (persis sama dengan nama di Daftar Bahan) berisi qty yang dipakai SKU itu (kosong/0 = tidak dipakai). Harga Modal SKU dihitung otomatis: Harga Produk Utama + Σ(qty &times; harga bahan). Atur harga tiap bahan dulu di panel Daftar Bahan (ikon kotak di atas) sebelum upload file ini.</p>
+        <p style="margin-left:14px;">1. <b>Format flat</b> (lama) &mdash; 2 kolom: <code>ID SKU</code> dan <code>Harga Modal</code>. Angka langsung dipakai apa adanya sebagai HPP final (tanpa biaya packing tambahan).</p>
+        <p style="margin-left:14px;">2. <b>Format klasifikasi</b> (baru) &mdash; 5 kolom: <code>ID SKU</code>, <code>Kategori</code> (Lokal/Non-Lokal), <code>Ukuran</code> (cuma wajib buat Lokal &mdash; 4 atau 5), <code>Tipe Paket</code> (Bola Saja/Paket Lengkap), <code>Harga Produk</code> (harga bola saja, TANPA bahan kemasan). Biaya bahan kemasan (Label Resi, Fragile, Plastik, Kardus, Lakban, dst) dihitung OTOMATIS per pesanan berdasarkan Kategori/Ukuran/Tipe Paket &amp; qty pesanan, pakai aturan &amp; harga dari panel Daftar Bahan (ikon kotak di atas) &mdash; atur bahan-bahannya dulu sebelum upload file ini.</p>
         <p>File boleh format <b>.csv</b> atau <b>.xlsx</b> langsung, tidak perlu convert manual.</p>
       </div>
       <div class="help-body" id="log-body">
@@ -527,12 +538,15 @@
     monthlyArchive: [],   // [{ym, archived:true, ...semua field hasil computeMonthly()}] -- lihat archiveMonth()
     archivedBiayaByOrder: {}, // orderId -> total Platform Fee, diisi archiveMonth() sebelum pencairanRows bulan
                              // itu dihapus -- supaya computeMonthlyAccrual() tetap tahu order itu sudah settle
-    skuRecipe: {}          // sku -> { baseProduk, materials: { namaBahan: qty } } -- HANYA untuk SKU yang
-                             // harga modalnya diupload lewat format "lebar" (breakdown per bahan kemasan).
-                             // SKU dari file lama (2 kolom) tidak punya entri di sini -- skuCost-nya tetap
-                             // angka flat yang diketik langsung. Lihat processModal() & recomputeAllSkuCosts().
+    skuMeta: {}             // sku -> { kategori: "lokal"|"non-lokal", ukuran: "4"|"5"|null, tipePaket:
+                             // "bola-saja"|"paket-lengkap" } -- HANYA untuk SKU yang diupload lewat format
+                             // "lebar" (5 kolom, lihat processModal()). SKU dari file lama (2 kolom: ID SKU,
+                             // Harga Modal) tidak punya entri di sini -- skuCost-nya angka flat FINAL (sudah
+                             // termasuk semua bahan), di luar sistem hitung packing per-pesanan sepenuhnya.
+                             // Untuk SKU yang PUNYA skuMeta, skuCost berarti Harga Produk SAJA (tanpa bahan
+                             // kemasan) -- biaya bahan dihitung live per PESANAN, lihat computeOrderPackingCost().
   };
-  var root = null;  // { activeStore, stores: { id: stateObj, ... }, materials: { namaBahan: hargaPerUnit } }
+  var root = null;  // { activeStore, stores: { id: stateObj, ... }, materials: { namaBahan: {cost, caraHitung} } }
   var state = null; // = root.stores[root.activeStore]
 
   function freshDefaultState() {
@@ -1400,10 +1414,13 @@
   var MODAL_COLS = {
     SKU: ["ID SKU", "SKU ID"],
     HARGA: ["Harga Modal", "HARGA", "Modal", "Harga"],
-    // Format "lebar" (breakdown per bahan kemasan) -- lihat root.materials & state.skuRecipe.
-    // Nama kolom sengaja beda dari HARGA di atas supaya 1 file tidak bisa dibaca dua-duanya
-    // sekaligus (format lama vs baru selalu jelas mana yang dipakai).
-    PRODUK: ["Harga Produk Utama", "Harga Produk"]
+    // Format "lebar" (5 kolom, klasifikasi SKU buat hitung biaya packing per-pesanan otomatis --
+    // lihat computeOrderPackingCost()). Nama kolom HARGA_PRODUK sengaja beda dari HARGA di atas
+    // supaya 1 file tidak bisa dibaca dua-duanya sekaligus (format lama vs baru selalu jelas).
+    HARGA_PRODUK: ["Harga Produk", "Harga Produk Utama"],
+    KATEGORI: ["Kategori"],
+    UKURAN: ["Ukuran"],
+    TIPE_PAKET: ["Tipe Paket"]
   };
 
   function processModal(rows, fileName) {
@@ -1411,21 +1428,23 @@
     var headers = rows[0];
     var idxSku = findCol(headers, MODAL_COLS.SKU);
     var idxHarga = findCol(headers, MODAL_COLS.HARGA);
-    var idxProduk = findCol(headers, MODAL_COLS.PRODUK);
+    var idxProduk = findCol(headers, MODAL_COLS.HARGA_PRODUK);
     if (idxSku === -1 || (idxHarga === -1 && idxProduk === -1)) {
-      throw new Error("Butuh kolom ID SKU dan Harga Modal (atau Harga Produk Utama untuk format breakdown bahan).");
+      throw new Error("Butuh kolom ID SKU dan Harga Modal (atau Harga Produk untuk format klasifikasi).");
     }
-
-    // Kolom bahan dicocokkan ke nama-nama di root.materials (Daftar Bahan yang sudah dikonfigurasi
-    // di app) -- kolom lain yang tidak cocok nama bahan apa pun (Kategori, Varian, dsb dari file
-    // sumber Shopee/Tokped) diam-diam diabaikan, sama seperti kolom tak dikenal lainnya di app ini.
-    // Cuma dicari kalau ada kolom "Harga Produk Utama" -- itu penanda file ini format breakdown.
-    var materialCols = {}; // namaBahan -> index kolom
+    var idxKategori = -1, idxUkuran = -1, idxTipePaket = -1;
     if (idxProduk > -1) {
-      Object.keys(root.materials).forEach(function (name) {
-        var idx = findCol(headers, [name]);
-        if (idx > -1) materialCols[name] = idx;
-      });
+      // Format baru WAJIB ketiga kolom klasifikasi ini sekaligus -- tanpa ini biaya packing per
+      // pesanan tidak bisa dihitung sama sekali (lihat computeOrderPackingCost()), jadi lebih baik
+      // ditolak jelas di sini daripada diam-diam menghasilkan COGS yang salah/kosong nanti.
+      idxKategori = findCol(headers, MODAL_COLS.KATEGORI);
+      idxUkuran = findCol(headers, MODAL_COLS.UKURAN);
+      idxTipePaket = findCol(headers, MODAL_COLS.TIPE_PAKET);
+      var missingCols = [];
+      if (idxKategori === -1) missingCols.push("Kategori");
+      if (idxUkuran === -1) missingCols.push("Ukuran");
+      if (idxTipePaket === -1) missingCols.push("Tipe Paket");
+      if (missingCols.length) throw new Error("Format Harga Produk butuh kolom " + missingCols.join(", ") + " juga.");
     }
 
     // seenInFile: harga TERAKHIR yang sudah dibaca untuk ID SKU ini SEJAUH INI di file yang sama --
@@ -1441,25 +1460,24 @@
       var sku = String(raw[idxSku] || "").trim();
       if (!sku) continue;
 
-      var harga, recipe = null;
+      var harga, meta = null;
       if (idxProduk > -1) {
-        // Format breakdown: total = Harga Produk Utama + Σ(qty bahan × harga bahan SAAT INI di
-        // root.materials). Disimpan juga resep mentahnya (skuRecipe) supaya kalau harga 1 bahan
-        // berubah nanti, total ini bisa dihitung ULANG tanpa perlu upload ulang filenya
-        // (lihat recomputeAllSkuCosts()).
-        var baseProduk = toNumber(raw[idxProduk]);
-        var materialsQty = {};
-        harga = baseProduk;
-        Object.keys(materialCols).forEach(function (name) {
-          var qty = toNumber(raw[materialCols[name]]);
-          if (qty > 0) {
-            materialsQty[name] = qty;
-            harga += qty * (root.materials[name] || 0);
-          }
-        });
-        recipe = { baseProduk: baseProduk, materials: materialsQty };
+        // Format baru: skuCost berarti HARGA PRODUK SAJA (bukan total) -- biaya bahan kemasan
+        // dihitung LIVE per pesanan tiap kali dihitung (computeOrderPackingCost()), tidak disimpan
+        // di sini, supaya selalu ikut harga bahan TERBARU tanpa perlu upload ulang file ini.
+        harga = toNumber(raw[idxProduk]);
+        var kategoriRaw = String(raw[idxKategori] || "").trim().toLowerCase();
+        var kategori = kategoriRaw.indexOf("non") > -1 ? "non-lokal" : (kategoriRaw ? "lokal" : null);
+        var ukuranRaw = String(raw[idxUkuran] || "").trim();
+        var tipePaketRaw = String(raw[idxTipePaket] || "").trim().toLowerCase();
+        var tipePaket = tipePaketRaw.indexOf("lengkap") > -1 ? "paket-lengkap" : (tipePaketRaw ? "bola-saja" : null);
+        meta = {
+          kategori: kategori,
+          ukuran: (kategori === "lokal" && ukuranRaw) ? ukuranRaw : null, // cuma relevan buat Lokal
+          tipePaket: tipePaket
+        };
       } else {
-        // Format lama: angka flat, tidak ada breakdown.
+        // Format lama: angka flat FINAL (sudah termasuk semua bahan), di luar sistem packing.
         harga = toNumber(raw[idxHarga]);
       }
       if (harga <= 0) continue;
@@ -1476,10 +1494,10 @@
       if (prev == null) added++;
       else if (prev !== harga) updated++;
       state.skuCost[sku] = harga;
-      // SKU yang diupload lewat format lama (flat) menurunkan resepnya kalau sebelumnya punya --
-      // angka yang baru diketik manual harus menang total, bukan ketiban recompute bahan lama.
-      if (recipe) state.skuRecipe[sku] = recipe;
-      else delete state.skuRecipe[sku];
+      // SKU yang diupload lewat format lama (flat) menurunkan klasifikasinya kalau sebelumnya
+      // punya -- angka yang baru diketik manual harus menang total, keluar dari sistem packing.
+      if (meta) state.skuMeta[sku] = meta;
+      else delete state.skuMeta[sku];
     }
 
     var extraParts = [];
@@ -1489,24 +1507,113 @@
     return { added: added, updated: updated, conflicts: conflicts };
   }
 
-  // Dipanggil tiap kali root.materials berubah (tambah/edit harga/hapus bahan) -- jalan ulang
-  // formula "baseProduk + Σ(qty × harga bahan)" untuk SEMUA SKU yang punya skuRecipe, di
-  // KETIGA toko sekaligus (materials bersama, tapi skuRecipe per toko). SKU dari format lama
-  // (tanpa skuRecipe) tidak tersentuh sama sekali -- angkanya tetap flat seperti yang diketik.
-  // Bahan yang sudah dihapus dari root.materials dianggap kontribusi 0 (bukan error).
-  function recomputeAllSkuCosts() {
-    STORE_DEFS.forEach(function (s) {
-      var st = root.stores[s.id];
-      Object.keys(st.skuRecipe).forEach(function (sku) {
-        var r = st.skuRecipe[sku];
-        var total = r.baseProduk;
-        Object.keys(r.materials).forEach(function (name) {
-          var cost = root.materials[name];
-          if (cost != null) total += r.materials[name] * cost;
-        });
-        st.skuCost[sku] = total;
-      });
+  // Cari 1 bahan di root.materials yang "Cara Hitung"-nya = role tertentu (peran tunggal di rumus
+  // packing -- plastik_kecil/plastik_besar/kardus_kecil/kardus_besar/ikut_plastik_besar). Kalau
+  // ada >1 bahan pakai role yang sama, yang pertama ketemu yang dipakai (UI Daftar Bahan sudah
+  // memperingatkan soal ini, lihat attachMaterialsHandlers()).
+  function findMaterialByRole(role) {
+    var names = Object.keys(root.materials);
+    for (var i = 0; i < names.length; i++) {
+      if (root.materials[names[i]].caraHitung === role) return { name: names[i], cost: root.materials[names[i]].cost };
+    }
+    return null;
+  }
+
+  /* ================= Biaya packing per pesanan =================
+     Dipisah dari skuCost (yang sekarang cuma berarti Harga Produk) karena hampir semua bahan
+     kemasan habisnya per PESANAN, bukan per baris SKU -- lihat diskusi & tabel aturan lengkap di
+     README "Model biaya packing". Dipanggil sekali per order (bukan per baris) dari
+     computeMonthly()/computeMonthlyAccrual(), pakai skuList = state.orderMaster[orderId].
+     SELALU dihitung LIVE dari root.materials saat ini (tidak pernah disimpan/di-cache) -- jadi
+     ganti harga atau Cara Hitung 1 bahan otomatis berlaku ke semua bulan begitu di-render ulang. */
+  function computeOrderPackingCost(skuList) {
+    var qtyTotal = 0, qtyLokal = 0, qtyPaketLengkap = 0;
+    var lokalUkurans = {}; // ukuran -> qty lokal dengan ukuran itu ("?" = lokal qty>1 tanpa ukuran)
+    var qtyNonLokal = 0;
+    var sawClassified = false; // ada minimal 1 baris yang punya skuMeta? (SKU format lama diabaikan total)
+
+    skuList.forEach(function (pair) {
+      // Qty buat packing pakai qty ASLI dipesan (sebelum retur) -- bahan kemasan sudah kepakai
+      // waktu dikirim, retur belakangan tidak mengembalikan kardus/plastik yang sudah dipakai.
+      // Beda dengan HPP produk yang pakai qty net (retur dianggap tidak menghanguskan modal).
+      var sku = pair[PLINE.SKU];
+      var qty = pair.length >= 6 ? pair[PLINE.QTY_ORIGINAL] : pair[PLINE.QTY];
+      if (!qty || qty <= 0) return;
+      var meta = state.skuMeta[sku];
+      if (!meta) return; // SKU format lama -- di luar sistem packing sepenuhnya
+      sawClassified = true;
+      qtyTotal += qty;
+      if (meta.tipePaket === "paket-lengkap") qtyPaketLengkap += qty;
+      if (meta.kategori === "non-lokal") {
+        qtyNonLokal += qty;
+      } else if (meta.kategori === "lokal") {
+        qtyLokal += qty;
+        var key = meta.ukuran || "?";
+        lokalUkurans[key] = (lokalUkurans[key] || 0) + qty;
+      }
+      // meta.kategori == null (belum diisi/tidak dikenali) -- ikut qtyTotal (buat bahan universal
+      // seperti Jaring Pentil/Label Resi), tapi TIDAK ikut qtyLokal/qtyNonLokal (tidak diketahui).
     });
+
+    if (!sawClassified) return { cost: 0, incomplete: false, qtyTotal: 0 };
+
+    var materials = {}; // namaBahan -> qty terpakai
+    function add(role, qty) {
+      if (!qty || qty <= 0) return;
+      var mat = findMaterialByRole(role);
+      if (!mat) return; // belum ada bahan yang diset perannya -- diam2 skip, bukan error
+      materials[mat.name] = (materials[mat.name] || 0) + qty;
+    }
+
+    var incomplete = false;
+    var plastikBesarQty = 0;
+    if (qtyNonLokal > 0) {
+      // Ada Non-Lokal (murni atau campur Lokal+Non-Lokal) -- qty gabungan menentukan kardus.
+      var totalKardus = qtyLokal + qtyNonLokal;
+      if (totalKardus === 1) {
+        add("kardus_kecil", 1);
+        plastikBesarQty = 1;
+      } else {
+        var nKardus = Math.ceil(totalKardus / 2);
+        add("kardus_besar", nKardus);
+        plastikBesarQty = nKardus;
+      }
+      add("plastik_besar", plastikBesarQty); // tiap Kardus (kecil/besar) selalu dibungkus Plastik Besar juga
+    } else if (qtyLokal > 0) {
+      if (qtyLokal === 1) {
+        add("plastik_kecil", 1);
+      } else if (lokalUkurans.hasOwnProperty("?")) {
+        // Ada baris Lokal qty>1 yang Ukuran-nya belum diisi -- kapasitas Plastik Besar tidak bisa
+        // ditentukan. Data belum lengkap, bukan ditebak.
+        incomplete = true;
+      } else {
+        var ukuranSet = Object.keys(lokalUkurans);
+        // Campur Size 4 & Size 5 dalam 1 pesanan -> pakai kapasitas Size 4 (lebih besar/longgar).
+        // Murni 1 ukuran -> kapasitas ukuran itu (Size 5 = 2, selain itu = 3).
+        var kapasitas = ukuranSet.length > 1 ? 3 : (ukuranSet[0] === "5" ? 2 : 3);
+        var nPlastik = Math.ceil(qtyLokal / kapasitas);
+        add("plastik_besar", nPlastik);
+        plastikBesarQty = nPlastik;
+      }
+    }
+    add("ikut_plastik_besar", plastikBesarQty); // Lakban
+
+    // Bahan generik (bukan role tunggal) -- semua bahan di Daftar Bahan dengan Cara Hitung ini
+    // ikut dihitung, apa pun namanya (Label Resi/Fragile/Kartu Garansi/Jaring Pentil/Pompa, atau
+    // bahan baru yang ditambahkan belakangan dengan pola sama).
+    Object.keys(root.materials).forEach(function (name) {
+      var m = root.materials[name];
+      if (m.caraHitung === "per_pesanan") materials[name] = (materials[name] || 0) + 1;
+      else if (m.caraHitung === "per_unit") materials[name] = (materials[name] || 0) + qtyTotal;
+      else if (m.caraHitung === "per_unit_paket_lengkap") materials[name] = (materials[name] || 0) + qtyPaketLengkap;
+    });
+
+    var cost = 0;
+    Object.keys(materials).forEach(function (name) {
+      var m = root.materials[name];
+      if (m) cost += materials[name] * m.cost;
+    });
+    return { cost: cost, incomplete: incomplete, qtyTotal: qtyTotal };
   }
 
   /* ================= Compute ================= */
@@ -1532,7 +1639,9 @@
           lainnya: { n: 0, pendapatan: 0 }
         },
         penyesuaian: 0, penyelesaian: 0,
-        hppFound: 0, qtyFound: 0, hppEstQty: 0, ordersMatched: 0, ordersUnmatched: 0, rows: 0
+        hppFound: 0, qtyFound: 0, hppEstQty: 0, ordersMatched: 0, ordersUnmatched: 0, rows: 0,
+        packingIncompleteOrders: 0 // jumlah order yang biaya packing-nya belum bisa dihitung
+                                    // (SKU Lokal qty>1 tanpa Ukuran) -- lihat computeOrderPackingCost()
       };
       return months[ym];
     }
@@ -1593,11 +1702,16 @@
         m.ordersMatched++;
         skuList.forEach(function (pair) {
           var sku = pair[0], qty = pair[1]; // qty net dari retur, lihat processPesanan()
-          if (qty <= 0) return; // baris di-retur penuh -> tidak ada HPP
-          var cost = state.skuCost[sku];
+          if (qty <= 0) return; // baris di-retur penuh -> tidak ada HPP produk
+          var cost = state.skuCost[sku]; // Harga Produk (SKU format baru) atau angka flat (lama)
           if (cost != null) { m.hppFound += cost * qty; m.qtyFound += qty; }
           else { m.hppEstQty += qty; }
         });
+        // Biaya packing dihitung SEKALI per order (bukan per baris SKU) -- lihat
+        // computeOrderPackingCost(). Ditambahkan ke hppFound, di luar HPP produk di atas.
+        var packing = computeOrderPackingCost(skuList);
+        m.hppFound += packing.cost;
+        if (packing.incomplete) m.packingIncompleteOrders++;
       } else {
         m.ordersUnmatched++;
       }
@@ -1612,10 +1726,10 @@
       var hppEst = hasCostRef ? m.hppEstQty * avgCost : 0;
       var hppUnknownQty = hasCostRef ? 0 : m.hppEstQty; // qty we truly cannot estimate yet
       var hppTotal = m.hppFound + hppEst;
-      // hppComplete requires BOTH: at least one order in this month has been matched against
-      // Data Pesanan (otherwise we have zero SKU/qty info at all — not "0 cost", just unknown),
-      // AND every matched unit has a real or estimated cost (hppUnknownQty === 0).
-      var hppComplete = m.ordersMatched > 0 && hppUnknownQty === 0;
+      // hppComplete requires: minimal 1 order matched, setiap unit yang matched punya HPP produk
+      // (real/estimasi), DAN tidak ada order yang biaya packing-nya belum bisa dihitung (SKU
+      // Lokal qty>1 tanpa Ukuran diisi -- lihat computeOrderPackingCost()).
+      var hppComplete = m.ordersMatched > 0 && hppUnknownQty === 0 && m.packingIncompleteOrders === 0;
       // Waterfall Gross Sales -> Operating Profit (lihat README "Model akuntansi"). `pendapatan`
       // sekarang BERARTI Net Sales (bukan lagi jumlah kolom "Total Pendapatan" per baris) --
       // nama variabel dipertahankan supaya kode lain (growth tracking, trend chart, arsip bulan
@@ -1729,7 +1843,8 @@
         // "selesai" (tidak ada retur sama sekali di baris SKU manapun) vs "retur" (ada retur
         // di minimal 1 baris SKU, dari kolom "Sku Quantity of return" -- sumber yang sama
         // dipakai buat Sales Returns, lihat catatan di atas).
-        settledSelesai: 0, settledRetur: 0, pendingSelesai: 0, pendingRetur: 0
+        settledSelesai: 0, settledRetur: 0, pendingSelesai: 0, pendingRetur: 0,
+        packingIncompleteOrders: 0 // lihat computeOrderPackingCost() & catatan di computeMonthly()
       };
       return months[ym];
     }
@@ -1786,6 +1901,11 @@
 
       if (hasAccrualData) {
         m.ordersMatched++;
+        // Biaya packing dihitung SEKALI per order, sama seperti basis Kas (computeMonthly()) --
+        // lihat computeOrderPackingCost(). Ditambahkan ke hppFound produk di atas.
+        var packing = computeOrderPackingCost(skuList);
+        m.hppFound += packing.cost;
+        if (packing.incomplete) m.packingIncompleteOrders++;
         var fee = biayaByOrder[orderId];
         if (fee != null) {
           m.biayaTotal += fee; m.ordersSettled++;
@@ -1807,7 +1927,7 @@
       var hppEst = hasCostRef ? m.hppEstQty * avgCost : 0;
       var hppUnknownQty = hasCostRef ? 0 : m.hppEstQty;
       var hppTotal = m.hppFound + hppEst;
-      var hppComplete = m.ordersMatched > 0 && hppUnknownQty === 0;
+      var hppComplete = m.ordersMatched > 0 && hppUnknownQty === 0 && m.packingIncompleteOrders === 0;
       var grossProfit = hppComplete ? netSales - hppTotal : null;
       // Operating Profit cuma bisa dihitung kalau SEMUA order di bulan ini sudah settle
       // (ordersPending === 0) -- kalau masih ada yang pending, Platform Fee-nya belum lengkap,
@@ -1933,9 +2053,44 @@
   }
 
   // Daftar Bahan -- bersama untuk 3 toko (root.materials, BUKAN di dalam state per-toko).
-  // Dipakai buat hitung otomatis Harga Modal SKU lewat format breakdown, lihat processModal()
-  // & recomputeAllSkuCosts(). Regenerasi + pasang ulang handler tiap baris sekaligus di sini
-  // (dipanggil ulang tiap render(), bukan cuma sekali di init) supaya selalu sinkron.
+  // Dipakai buat hitung biaya packing per pesanan secara live, lihat computeOrderPackingCost().
+  // Regenerasi + pasang ulang handler tiap baris sekaligus di sini (dipanggil ulang tiap
+  // render(), bukan cuma sekali di init) supaya selalu sinkron.
+  // "Cara Hitung" -- lihat computeOrderPackingCost() untuk arti tiap mode. 5 mode pertama generik
+  // (bisa dipakai bahan apa saja, termasuk bahan baru nanti); 4 mode terakhir adalah PERAN TUNGGAL
+  // dalam rumus packing (idealnya cuma 1 bahan yang pakai tiap peran itu -- lihat validasi di
+  // attachMaterialsHandlers()/renderMaterialsPanel()).
+  var CARA_HITUNG_OPTIONS = [
+    ["per_pesanan", "Per Pesanan (selalu 1x)"],
+    ["per_unit", "Per Unit (ikut total qty)"],
+    ["per_unit_paket_lengkap", "Per Unit, khusus Paket Lengkap"],
+    ["plastik_kecil", "→ Peran: Plastik Kecil (Lokal qty=1)"],
+    ["plastik_besar", "→ Peran: Plastik Besar (Lokal qty>1 / bungkus Kardus)"],
+    ["kardus_kecil", "→ Peran: Kardus Kecil (Non-Lokal qty=1)"],
+    ["kardus_besar", "→ Peran: Kardus Besar (Non-Lokal qty>1)"],
+    ["ikut_plastik_besar", "→ Peran: Ikut Plastik Besar (mis. Lakban)"]
+  ];
+  var CARA_HITUNG_ROLES = ["plastik_kecil", "plastik_besar", "kardus_kecil", "kardus_besar", "ikut_plastik_besar"];
+
+  function caraHitungSelectHtml(selected) {
+    return '<select class="material-cara-select">' + CARA_HITUNG_OPTIONS.map(function (o) {
+      return '<option value="' + o[0] + '"' + (o[0] === selected ? " selected" : "") + '>' + esc(o[1]) + "</option>";
+    }).join("") + "</select>";
+  }
+
+  // Kalau bahan ini dikasih salah satu dari 4 peran tunggal (plastik_besar dkk) padahal bahan LAIN
+  // sudah pakai peran yang sama, itu bakal bikin 1 dari keduanya diam-diam tidak pernah kepakai
+  // (findMaterialByRole() cuma ambil yang pertama ketemu) -- konfirmasi eksplisit dulu.
+  function confirmRoleConflict(role, excludeName) {
+    if (CARA_HITUNG_ROLES.indexOf(role) === -1) return true;
+    var other = null;
+    Object.keys(root.materials).forEach(function (n) {
+      if (n !== excludeName && root.materials[n].caraHitung === role) other = n;
+    });
+    if (!other) return true;
+    return confirm("Peran ini sudah dipakai bahan \"" + other + "\". Kalau dilanjutkan, \"" + other + "\" tidak lagi kepakai perannya (cuma 1 bahan per peran). Lanjutkan?");
+  }
+
   function renderMaterialsPanel() {
     var el = document.getElementById("materials-list");
     if (!el) return;
@@ -1945,9 +2100,11 @@
       return;
     }
     el.innerHTML = names.map(function (name) {
+      var m = root.materials[name];
       return '<li data-material="' + esc(name) + '">' +
         '<span class="name">' + esc(name) + '</span>' +
-        '<input type="number" min="0" step="1" class="material-cost-input" value="' + (root.materials[name] || 0) + '" />' +
+        caraHitungSelectHtml(m.caraHitung) +
+        '<input type="number" min="0" step="1" class="material-cost-input" value="' + (m.cost || 0) + '" />' +
         '<button class="icon-btn" type="button" title="Hapus bahan" aria-label="Hapus bahan ' + esc(name) + '">' +
         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>' +
         "</button></li>";
@@ -1955,45 +2112,47 @@
     el.querySelectorAll("li[data-material]").forEach(function (li) {
       var name = li.getAttribute("data-material");
       var input = li.querySelector(".material-cost-input");
+      var select = li.querySelector(".material-cara-select");
       function saveCost() {
         var val = toNumber(input.value);
-        if (val === root.materials[name]) return;
-        root.materials[name] = val;
-        recomputeAllSkuCosts();
+        if (val === root.materials[name].cost) return;
+        root.materials[name].cost = val;
         persist("Harga bahan \"" + name + "\" diperbarui.");
       }
       input.addEventListener("blur", saveCost);
       input.addEventListener("keydown", function (e) { if (e.key === "Enter") input.blur(); });
+      select.addEventListener("change", function () {
+        var val = select.value;
+        if (val === root.materials[name].caraHitung) return;
+        if (!confirmRoleConflict(val, name)) { select.value = root.materials[name].caraHitung; return; }
+        root.materials[name].caraHitung = val;
+        persist("Cara hitung bahan \"" + name + "\" diperbarui.");
+      });
       li.querySelector("button").addEventListener("click", function () {
-        // Cek pemakaian di SEMUA toko dulu -- kalau masih dipakai, minta konfirmasi eksplisit
-        // karena menghapus bahan bikin kontribusinya ke Harga Modal SKU yang pakai jadi Rp0
-        // begitu recomputeAllSkuCosts() jalan (lihat catatan di fungsi itu).
-        var usedBy = 0;
-        STORE_DEFS.forEach(function (s) {
-          var st = root.stores[s.id];
-          Object.keys(st.skuRecipe).forEach(function (sku) {
-            if (st.skuRecipe[sku].materials.hasOwnProperty(name)) usedBy++;
-          });
-        });
-        var msg = "Hapus bahan \"" + name + "\" dari Daftar Bahan?";
-        if (usedBy) msg += "\n\n" + usedBy + " SKU (di semua toko) masih pakai bahan ini di resepnya -- Harga Modal SKU-nya akan berkurang begitu bahan ini dihapus (dianggap kontribusi Rp0), resepnya sendiri tidak ikut terhapus.";
-        if (!confirm(msg)) return;
+        // Bahan dipakai LIVE tiap hitung ulang (tidak disimpan per SKU) -- hapus langsung
+        // hilang kontribusinya dari perhitungan bulan-bulan berikutnya, tidak ada data lain yang
+        // perlu dibersihkan.
+        if (!confirm("Hapus bahan \"" + name + "\" dari Daftar Bahan? Kontribusinya ke biaya packing akan hilang (dianggap Rp0) mulai render berikutnya.")) return;
         delete root.materials[name];
-        recomputeAllSkuCosts();
         persist("Bahan \"" + name + "\" dihapus.");
       });
     });
   }
 
   function attachMaterialsHandlers() {
+    document.getElementById("material-new-cara").innerHTML = CARA_HITUNG_OPTIONS.map(function (o) {
+      return '<option value="' + o[0] + '">' + esc(o[1]) + "</option>";
+    }).join("");
     function addMaterial() {
       var nameInput = document.getElementById("material-new-name");
       var costInput = document.getElementById("material-new-cost");
+      var caraSelect = document.getElementById("material-new-cara");
       var name = nameInput.value.trim();
       if (!name) { nameInput.focus(); return; }
       if (root.materials.hasOwnProperty(name)) { showToast("Bahan \"" + name + "\" sudah ada."); return; }
-      root.materials[name] = toNumber(costInput.value);
-      nameInput.value = ""; costInput.value = "";
+      if (!confirmRoleConflict(caraSelect.value, null)) return;
+      root.materials[name] = { cost: toNumber(costInput.value), caraHitung: caraSelect.value };
+      nameInput.value = ""; costInput.value = ""; caraSelect.value = "per_pesanan";
       renderMaterialsPanel();
       persist("Bahan \"" + name + "\" ditambahkan.");
       nameInput.focus();
