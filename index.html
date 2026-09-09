@@ -460,6 +460,9 @@
           <button class="icon-btn" id="log-toggle" type="button" title="Lihat riwayat upload" aria-label="Riwayat upload">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
           </button>
+          <button class="icon-btn" id="btn-clear-modal" type="button" title="Hapus semua Harga Modal SKU toko ini" aria-label="Hapus Harga Modal SKU">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+          </button>
         </div>
       </div>
       <div class="help-body" id="modal-body">
@@ -471,9 +474,6 @@
           <p style="margin:0;">Upload file dengan kolom <code>ID SKU</code> dan <code>Harga Modal</code> (atau <code>Harga Produk</code> + <code>Kategori</code> + <code>Ukuran</code> + <code>Tipe Paket</code> supaya biaya packing dihitung otomatis per pesanan, lihat ikon <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path></svg> di atas). Boleh diupload ulang kapan saja untuk menambah SKU baru atau update harga yang sudah ada.</p>
         </div>
         <div id="modal-conflicts"></div>
-        <div style="margin-top:10px;">
-          <button type="button" id="btn-clear-modal" class="help-toggle" style="color:var(--danger);">Hapus semua Harga Modal SKU toko ini</button>
-        </div>
       </div>
       <div class="help-body" id="materials-body">
         <p class="note" style="margin:0 0 10px;">Daftar bahan kemasan &amp; harga per unit &mdash; <b>bersama untuk ketiga toko</b>. "Cara Hitung" nentuin berapa qty bahan itu dipakai per PESANAN (bukan per SKU) &mdash; lihat penjelasan tiap pilihan lewat ikon "?" di sebelah kolom Harga Modal SKU. Ubah harga/cara hitung di sini langsung berlaku ke semua bulan begitu halaman di-refresh, tidak perlu upload ulang apa pun.</p>
@@ -3044,7 +3044,9 @@
   // itu, request-nya ikut terputus dan perubahannya BATAL tersimpan (root cause bug "reset data
   // tidak hilang" yang dilaporkan user). Selama busy: tombol header lain + tab toko ikut dikunci
   // supaya tidak ada aksi lain menyusul menimpa antrean simpan yang sama.
-  var RESET_ICON_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
+  var TRASH_ICON_SVG = '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line>';
+  var RESET_ICON_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + TRASH_ICON_SVG + '</svg>';
+  var CLEAR_MODAL_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + TRASH_ICON_SVG + '</svg>';
   function setDataActionBusy(isBusy) {
     var resetBtn = document.getElementById("btn-reset");
     resetBtn.disabled = isBusy;
@@ -3057,7 +3059,8 @@
     var clearModalBtn = document.getElementById("btn-clear-modal");
     if (clearModalBtn) {
       clearModalBtn.disabled = isBusy;
-      clearModalBtn.textContent = isBusy ? "Menghapus & menyimpan..." : "Hapus semua Harga Modal SKU toko ini";
+      clearModalBtn.title = isBusy ? "Menghapus & menyimpan..." : "Hapus semua Harga Modal SKU toko ini";
+      clearModalBtn.innerHTML = isBusy ? '<span class="spinner sm"></span>' : CLEAR_MODAL_ICON_SVG;
     }
   }
 
