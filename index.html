@@ -1472,12 +1472,18 @@
         harga = toNumber(raw[idxProduk]);
         var kategoriRaw = String(raw[idxKategori] || "").trim().toLowerCase();
         var kategori = kategoriRaw.indexOf("non") > -1 ? "non-lokal" : (kategoriRaw ? "lokal" : null);
-        var ukuranRaw = String(raw[idxUkuran] || "").trim();
+        // Ukuran dinormalisasi ke digit murni ("Size 4"/"size4"/"UK 4"/"4" semua jadi "4") supaya
+        // rumus kapasitas (computeOrderPackingCost(), bandingnya ukuranSet[0] === "5") tidak
+        // salah baca diam-diam. Kalau hasilnya bukan persis "4" atau "5" (termasuk kosong), jadi
+        // null -- diperlakukan sama seperti belum diisi (memicu status "data belum lengkap"),
+        // BUKAN ditebak/diasumsikan salah satu ukuran.
+        var ukuranDigits = String(raw[idxUkuran] || "").replace(/[^0-9]/g, "");
+        var ukuranNormalized = (ukuranDigits === "4" || ukuranDigits === "5") ? ukuranDigits : null;
         var tipePaketRaw = String(raw[idxTipePaket] || "").trim().toLowerCase();
         var tipePaket = tipePaketRaw.indexOf("lengkap") > -1 ? "paket-lengkap" : (tipePaketRaw ? "bola-saja" : null);
         meta = {
           kategori: kategori,
-          ukuran: (kategori === "lokal" && ukuranRaw) ? ukuranRaw : null, // cuma relevan buat Lokal
+          ukuran: kategori === "lokal" ? ukuranNormalized : null, // cuma relevan buat Lokal
           tipePaket: tipePaket
         };
       } else {
