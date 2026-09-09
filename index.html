@@ -1619,11 +1619,15 @@
     });
 
     var cost = 0;
+    var materialsCost = {}; // namaBahan -> kontribusi Rupiah (qty x harga) -- buat panel "Rincian HPP"
     Object.keys(materials).forEach(function (name) {
       var m = root.materials[name];
-      if (m) cost += materials[name] * m.cost;
+      if (!m) return;
+      var c = materials[name] * m.cost;
+      cost += c;
+      materialsCost[name] = c;
     });
-    return { cost: cost, incomplete: incomplete, qtyTotal: qtyTotal };
+    return { cost: cost, incomplete: incomplete, qtyTotal: qtyTotal, materialsCost: materialsCost };
   }
 
   /* ================= Compute ================= */
@@ -1650,8 +1654,9 @@
         },
         penyesuaian: 0, penyelesaian: 0,
         hppFound: 0, qtyFound: 0, hppEstQty: 0, ordersMatched: 0, ordersUnmatched: 0, rows: 0,
-        packingIncompleteOrders: 0 // jumlah order yang biaya packing-nya belum bisa dihitung
+        packingIncompleteOrders: 0, // jumlah order yang biaya packing-nya belum bisa dihitung
                                     // (SKU Lokal qty>1 tanpa Ukuran) -- lihat computeOrderPackingCost()
+        packingByMaterial: {} // namaBahan -> total Rupiah bulan ini -- buat panel "Rincian HPP"
       };
       return months[ym];
     }
@@ -1718,9 +1723,12 @@
           else { m.hppEstQty += qty; }
         });
         // Biaya packing dihitung SEKALI per order (bukan per baris SKU) -- lihat
-        // computeOrderPackingCost(). Ditambahkan ke hppFound, di luar HPP produk di atas.
+        // computeOrderPackingCost(). Disimpan TERPISAH per bahan (bukan digabung ke hppFound
+        // produk) supaya panel "Rincian HPP" bisa menampilkan Harga Produk vs tiap bahan sendiri.
         var packing = computeOrderPackingCost(skuList);
-        m.hppFound += packing.cost;
+        Object.keys(packing.materialsCost).forEach(function (name) {
+          m.packingByMaterial[name] = (m.packingByMaterial[name] || 0) + packing.materialsCost[name];
+        });
         if (packing.incomplete) m.packingIncompleteOrders++;
       } else {
         m.ordersUnmatched++;
@@ -1735,7 +1743,9 @@
       var avgCost = hasCostRef ? m.hppFound / m.qtyFound : null;
       var hppEst = hasCostRef ? m.hppEstQty * avgCost : 0;
       var hppUnknownQty = hasCostRef ? 0 : m.hppEstQty; // qty we truly cannot estimate yet
-      var hppTotal = m.hppFound + hppEst;
+      var hppProduk = m.hppFound + hppEst; // Harga Produk saja (real + estimasi), TANPA packing
+      var packingTotal = Object.keys(m.packingByMaterial).reduce(function (sum, name) { return sum + m.packingByMaterial[name]; }, 0);
+      var hppTotal = hppProduk + packingTotal;
       // hppComplete requires: minimal 1 order matched, setiap unit yang matched punya HPP produk
       // (real/estimasi), DAN tidak ada order yang biaya packing-nya belum bisa dihitung (SKU
       // Lokal qty>1 tanpa Ukuran diisi -- lihat computeOrderPackingCost()).
@@ -1755,6 +1765,7 @@
       return Object.assign(m, {
         pendapatan: netSales,
         hppTotal: hppTotal, hppTotalDisplay: hppComplete ? hppTotal : null, hppEst: hppEst, hppUnknownQty: hppUnknownQty, hppComplete: hppComplete,
+        hppProduk: hppProduk, packingTotal: packingTotal, // buat panel "Rincian HPP" -- lihat monthDetail()
         labaKotor: labaKotor, labaUsaha: labaUsaha,
         marginKotor: (labaKotor != null && netSales) ? labaKotor / netSales : null,
         marginUsaha: (labaUsaha != null && netSales) ? labaUsaha / netSales : null,
@@ -1854,7 +1865,8 @@
         // di minimal 1 baris SKU, dari kolom "Sku Quantity of return" -- sumber yang sama
         // dipakai buat Sales Returns, lihat catatan di atas).
         settledSelesai: 0, settledRetur: 0, pendingSelesai: 0, pendingRetur: 0,
-        packingIncompleteOrders: 0 // lihat computeOrderPackingCost() & catatan di computeMonthly()
+        packingIncompleteOrders: 0, // lihat computeOrderPackingCost() & catatan di computeMonthly()
+        packingByMaterial: {} // namaBahan -> total Rupiah bulan ini -- buat panel "Rincian HPP"
       };
       return months[ym];
     }
@@ -1912,9 +1924,11 @@
       if (hasAccrualData) {
         m.ordersMatched++;
         // Biaya packing dihitung SEKALI per order, sama seperti basis Kas (computeMonthly()) --
-        // lihat computeOrderPackingCost(). Ditambahkan ke hppFound produk di atas.
+        // lihat computeOrderPackingCost(). Disimpan terpisah per bahan, lihat catatan di computeMonthly().
         var packing = computeOrderPackingCost(skuList);
-        m.hppFound += packing.cost;
+        Object.keys(packing.materialsCost).forEach(function (name) {
+          m.packingByMaterial[name] = (m.packingByMaterial[name] || 0) + packing.materialsCost[name];
+        });
         if (packing.incomplete) m.packingIncompleteOrders++;
         var fee = biayaByOrder[orderId];
         if (fee != null) {
@@ -1936,7 +1950,9 @@
       var avgCost = hasCostRef ? m.hppFound / m.qtyFound : null;
       var hppEst = hasCostRef ? m.hppEstQty * avgCost : 0;
       var hppUnknownQty = hasCostRef ? 0 : m.hppEstQty;
-      var hppTotal = m.hppFound + hppEst;
+      var hppProduk = m.hppFound + hppEst; // Harga Produk saja (real + estimasi), TANPA packing
+      var packingTotal = Object.keys(m.packingByMaterial).reduce(function (sum, name) { return sum + m.packingByMaterial[name]; }, 0);
+      var hppTotal = hppProduk + packingTotal;
       var hppComplete = m.ordersMatched > 0 && hppUnknownQty === 0 && m.packingIncompleteOrders === 0;
       var grossProfit = hppComplete ? netSales - hppTotal : null;
       // Operating Profit cuma bisa dihitung kalau SEMUA order di bulan ini sudah settle
@@ -1947,6 +1963,7 @@
       var totalOrders = m.ordersMatched + m.ordersUnmatched;
       return Object.assign(m, {
         netSales: netSales, hppTotal: hppTotal, hppTotalDisplay: hppComplete ? hppTotal : null, hppComplete: hppComplete,
+        hppProduk: hppProduk, packingTotal: packingTotal, // buat panel "Rincian HPP" -- lihat monthDetailAccrual()
         grossProfit: grossProfit, operatingProfit: operatingProfit,
         marginGrossProfit: (grossProfit != null && netSales) ? grossProfit / netSales : null,
         marginOperating: (operatingProfit != null && netSales) ? operatingProfit / netSales : null,
@@ -2642,10 +2659,26 @@
         : " &mdash; selisih " + rp(settlementDiff) + " dari hasil hitungan Net Sales &minus; Platform Fee + Adjustments (bisa karena saldo/dompet tertahan atau item non-produk).") +
       "</div>";
 
+    // Rincian HPP: Harga Produk lalu tiap bahan packing yang kepakai bulan ini -- totalnya
+    // SELALU rekonsiliasi persis ke baris "COGS" di waterfall (m.hppTotal), lihat computeMonthly()
+    // (hppTotal = hppProduk + packingTotal, packingTotal = Σ packingByMaterial). Cuma ditampilkan
+    // kalau hppComplete, sama seperti baris COGS-nya sendiri -- tidak pernah nampilin angka
+    // sebagian yang bisa disalahartikan sebagai final.
+    var hppBreakdownHtml = m.hppComplete
+      ? "<li><span>Harga Produk</span><span class=\"amt\">" + rp(m.hppProduk) + "</span></li>" +
+        Object.keys(m.packingByMaterial).sort(function (a, b) { return a.localeCompare(b); }).map(function (name) {
+          return "<li><span>" + esc(name) + "</span><span class=\"amt\">" + rp(m.packingByMaterial[name]) + "</span></li>";
+        }).join("") +
+        "<li class=\"total\"><span>Total HPP (COGS)</span><span class=\"amt\">" + rp(m.hppTotal) + "</span></li>"
+      : '<div class="note">Belum bisa dirinci &mdash; COGS bulan ini belum lengkap (lihat catatan di atas).</div>';
+
     var sectionTitle = "font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;";
     return '<div class="detail-grid">' +
       '<div style="grid-column:1/-1;"><h3 style="' + sectionTitle + '">Ringkasan P&amp;L</h3>' +
       '<ul class="fee-list">' + waterfallHtml + "</ul>" + settlementNote +
+      "</div>" +
+      '<div><h3 style="' + sectionTitle + '">Rincian HPP</h3>' +
+      (m.hppComplete ? '<ul class="fee-list">' + hppBreakdownHtml + "</ul>" : hppBreakdownHtml) +
       "</div>" +
       '<div><h3 style="' + sectionTitle + '">Rincian Biaya Platform</h3>' +
       '<ul class="fee-list">' + feeHtml + "</ul>" +
@@ -2745,9 +2778,21 @@
       "<li><span>&nbsp;&nbsp;&nbsp;&nbsp;&mdash; Selesai (tanpa retur)</span><span class=\"amt ink-faint\">" + n(m.pendingSelesai) + " order</span></li>" +
       "<li><span>&nbsp;&nbsp;&nbsp;&nbsp;&mdash; Ada retur</span><span class=\"amt ink-faint\">" + n(m.pendingRetur) + " order</span></li>";
 
+    // Rincian HPP -- sama seperti basis Kas, lihat catatan lengkap di monthDetail().
+    var hppBreakdownHtml = m.hppComplete
+      ? "<li><span>Harga Produk</span><span class=\"amt\">" + rp(m.hppProduk) + "</span></li>" +
+        Object.keys(m.packingByMaterial).sort(function (a, b) { return a.localeCompare(b); }).map(function (name) {
+          return "<li><span>" + esc(name) + "</span><span class=\"amt\">" + rp(m.packingByMaterial[name]) + "</span></li>";
+        }).join("") +
+        "<li class=\"total\"><span>Total HPP (COGS)</span><span class=\"amt\">" + rp(m.hppTotal) + "</span></li>"
+      : '<div class="note">Belum bisa dirinci &mdash; COGS bulan ini belum lengkap (lihat catatan di atas).</div>';
+
     return '<div class="detail-grid">' +
       '<div style="grid-column:1/-1;"><h3 style="' + sectionTitle + '">Ringkasan P&amp;L (basis Akrual &mdash; bulan Created Time)</h3>' +
       '<ul class="fee-list">' + waterfallHtml + "</ul>" + noteEst + notePending +
+      "</div>" +
+      '<div><h3 style="' + sectionTitle + '">Rincian HPP</h3>' +
+      (m.hppComplete ? '<ul class="fee-list">' + hppBreakdownHtml + "</ul>" : hppBreakdownHtml) +
       "</div>" +
       '<div><h3 style="' + sectionTitle + '">Rincian Order</h3>' +
       '<ul class="fee-list">' + orderBreakdownHtml + "</ul>" +
