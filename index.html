@@ -272,6 +272,27 @@
   .missing-sku-list input[type=number]:focus { outline: none; border-color: var(--accent); }
   .missing-sku-list .saved { font-size: 11.5px; color: var(--accent); font-weight: 600; }
 
+  .materials-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  .materials-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dotted var(--line); }
+  .materials-list li:last-child { border-bottom: none; }
+  .materials-list .name { flex: 1; min-width: 0; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .materials-list input[type=number] {
+    width: 110px; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 6px;
+    background: var(--surface); color: var(--ink); font-family: var(--mono); font-size: 13px;
+    font-variant-numeric: tabular-nums; text-align: right;
+  }
+  .materials-list input[type=number]:focus { outline: none; border-color: var(--accent); }
+  .materials-add-row { display: flex; gap: 8px; margin-top: 12px; }
+  .materials-add-row input[type=text] {
+    flex: 1; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 6px;
+    background: var(--surface); color: var(--ink); font-family: var(--body); font-size: 13px;
+  }
+  .materials-add-row input[type=number] {
+    width: 130px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 6px;
+    background: var(--surface); color: var(--ink); font-family: var(--mono); font-size: 13px;
+  }
+  .materials-add-row input:focus { outline: none; border-color: var(--accent); }
+
   .field { margin-bottom: 14px; }
   .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-muted); margin-bottom: 5px; }
   .field input[type=text], .field input[type=password] {
@@ -419,6 +440,9 @@
           <div id="status-modal" style="font-size:12.5px;color:var(--ink-faint);"></div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
+          <button class="icon-btn" id="materials-toggle" type="button" title="Daftar Bahan (harga per bahan kemasan)" aria-label="Daftar Bahan">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
+          </button>
           <button class="icon-btn" id="help-toggle" type="button" title="Kolom apa saja yang dibutuhkan tiap file?" aria-label="Bantuan kolom file">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
           </button>
@@ -433,9 +457,18 @@
           <span class="icon-btn" style="cursor:pointer;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
           </span>
-          <p style="margin:0;">Upload file dengan kolom <code>ID SKU</code> dan <code>Harga Modal</code>. Boleh diupload ulang kapan saja untuk menambah SKU baru atau update harga yang sudah ada.</p>
+          <p style="margin:0;">Upload file dengan kolom <code>ID SKU</code> dan <code>Harga Modal</code> (atau <code>Harga Produk Utama</code> + kolom per bahan kemasan, lihat ikon <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path></svg> di atas). Boleh diupload ulang kapan saja untuk menambah SKU baru atau update harga yang sudah ada.</p>
         </div>
         <div id="modal-conflicts"></div>
+      </div>
+      <div class="help-body" id="materials-body">
+        <p class="note" style="margin:0 0 10px;">Daftar bahan kemasan &amp; harga per unit &mdash; <b>bersama untuk ketiga toko</b>. Dipakai buat hitung otomatis Harga Modal SKU kalau kamu upload file "format lebar" (kolom <code>Harga Produk Utama</code> + 1 kolom per bahan berisi qty). Ubah harga di sini otomatis meng-update ulang semua SKU yang pakai bahan itu.</p>
+        <ul class="materials-list" id="materials-list"></ul>
+        <div class="materials-add-row">
+          <input type="text" id="material-new-name" placeholder="Nama bahan baru (mis. Plastik Kecil)" />
+          <input type="number" id="material-new-cost" placeholder="Harga/unit" min="0" step="1" />
+          <button class="btn small primary" id="btn-add-material" type="button">Tambah</button>
+        </div>
       </div>
       <div class="help-body" id="help-body">
         <p><b>Data Pencairan</b> (CSV dari sheet "Detail pesanan" pada laporan income) &mdash; wajib ada kolom:
@@ -445,7 +478,9 @@
           Komisi Afiliasi, Komisi Iklan Toko afiliasi, Biaya pemrosesan pesanan, kolom-kolom Ongkir). Kolom lain akan diabaikan, tidak masalah kalau ikut terbawa.</p>
         <p><b>Data Pesanan</b> (CSV dari daftar pesanan) &mdash; wajib ada kolom: <code>Order ID</code>, <code>SKU ID</code>, <code>Quantity</code>, <code>Product Name</code>.
           Upload data pesanan untuk periode order dibuat yang cukup jauh ke belakang (2&ndash;3 bulan sebelum bulan pencairan pertama) supaya order lama yang baru cair tetap ketemu SKU-nya.</p>
-        <p><b>Harga Modal SKU</b> &mdash; cukup 2 kolom: <code>ID SKU</code> dan <code>Harga Modal</code>. Boleh diupload ulang kapan saja untuk update harga.</p>
+        <p><b>Harga Modal SKU</b> &mdash; 2 format didukung, boleh dicampur/upload ulang kapan saja:</p>
+        <p style="margin-left:14px;">1. <b>Format flat</b> (lama) &mdash; 2 kolom: <code>ID SKU</code> dan <code>Harga Modal</code>. Angka langsung dipakai apa adanya.</p>
+        <p style="margin-left:14px;">2. <b>Format breakdown</b> (baru) &mdash; kolom <code>ID SKU</code>, <code>Harga Produk Utama</code>, lalu 1 kolom per nama bahan (persis sama dengan nama di Daftar Bahan) berisi qty yang dipakai SKU itu (kosong/0 = tidak dipakai). Harga Modal SKU dihitung otomatis: Harga Produk Utama + Σ(qty &times; harga bahan). Atur harga tiap bahan dulu di panel Daftar Bahan (ikon kotak di atas) sebelum upload file ini.</p>
         <p>File boleh format <b>.csv</b> atau <b>.xlsx</b> langsung, tidak perlu convert manual.</p>
       </div>
       <div class="help-body" id="log-body">
@@ -490,10 +525,14 @@
     pencairanRows: [],    // deduped rows, compact arrays (see PROW_* indices)
     uploads: [],          // {t, label, fileName, rows}
     monthlyArchive: [],   // [{ym, archived:true, ...semua field hasil computeMonthly()}] -- lihat archiveMonth()
-    archivedBiayaByOrder: {} // orderId -> total Platform Fee, diisi archiveMonth() sebelum pencairanRows bulan
+    archivedBiayaByOrder: {}, // orderId -> total Platform Fee, diisi archiveMonth() sebelum pencairanRows bulan
                              // itu dihapus -- supaya computeMonthlyAccrual() tetap tahu order itu sudah settle
+    skuRecipe: {}          // sku -> { baseProduk, materials: { namaBahan: qty } } -- HANYA untuk SKU yang
+                             // harga modalnya diupload lewat format "lebar" (breakdown per bahan kemasan).
+                             // SKU dari file lama (2 kolom) tidak punya entri di sini -- skuCost-nya tetap
+                             // angka flat yang diketik langsung. Lihat processModal() & recomputeAllSkuCosts().
   };
-  var root = null;  // { activeStore, stores: { id: stateObj, ... } }
+  var root = null;  // { activeStore, stores: { id: stateObj, ... }, materials: { namaBahan: hargaPerUnit } }
   var state = null; // = root.stores[root.activeStore]
 
   function freshDefaultState() {
@@ -503,7 +542,9 @@
   function freshDefaultRoot() {
     var stores = {};
     STORE_DEFS.forEach(function (s) { stores[s.id] = freshDefaultState(); });
-    return { activeStore: STORE_DEFS[0].id, stores: stores };
+    // materials: daftar bahan kemasan BERSAMA untuk ketiga toko (bukan per-toko) -- gudang
+    // kemasan memang satu, tidak peduli order-nya dari marketplace mana.
+    return { activeStore: STORE_DEFS[0].id, stores: stores, materials: {} };
   }
 
   function storeName(id) {
@@ -1358,7 +1399,11 @@
 
   var MODAL_COLS = {
     SKU: ["ID SKU", "SKU ID"],
-    HARGA: ["Harga Modal", "HARGA", "Modal", "Harga"]
+    HARGA: ["Harga Modal", "HARGA", "Modal", "Harga"],
+    // Format "lebar" (breakdown per bahan kemasan) -- lihat root.materials & state.skuRecipe.
+    // Nama kolom sengaja beda dari HARGA di atas supaya 1 file tidak bisa dibaca dua-duanya
+    // sekaligus (format lama vs baru selalu jelas mana yang dipakai).
+    PRODUK: ["Harga Produk Utama", "Harga Produk"]
   };
 
   function processModal(rows, fileName) {
@@ -1366,7 +1411,22 @@
     var headers = rows[0];
     var idxSku = findCol(headers, MODAL_COLS.SKU);
     var idxHarga = findCol(headers, MODAL_COLS.HARGA);
-    if (idxSku === -1 || idxHarga === -1) throw new Error("Butuh kolom ID SKU dan Harga Modal.");
+    var idxProduk = findCol(headers, MODAL_COLS.PRODUK);
+    if (idxSku === -1 || (idxHarga === -1 && idxProduk === -1)) {
+      throw new Error("Butuh kolom ID SKU dan Harga Modal (atau Harga Produk Utama untuk format breakdown bahan).");
+    }
+
+    // Kolom bahan dicocokkan ke nama-nama di root.materials (Daftar Bahan yang sudah dikonfigurasi
+    // di app) -- kolom lain yang tidak cocok nama bahan apa pun (Kategori, Varian, dsb dari file
+    // sumber Shopee/Tokped) diam-diam diabaikan, sama seperti kolom tak dikenal lainnya di app ini.
+    // Cuma dicari kalau ada kolom "Harga Produk Utama" -- itu penanda file ini format breakdown.
+    var materialCols = {}; // namaBahan -> index kolom
+    if (idxProduk > -1) {
+      Object.keys(root.materials).forEach(function (name) {
+        var idx = findCol(headers, [name]);
+        if (idx > -1) materialCols[name] = idx;
+      });
+    }
 
     // seenInFile: harga TERAKHIR yang sudah dibaca untuk ID SKU ini SEJAUH INI di file yang sama --
     // dipakai buat deteksi ID SKU yang muncul >1x dengan harga berbeda dalam satu file (biasanya
@@ -1380,7 +1440,28 @@
       if (!raw || !raw.length) continue;
       var sku = String(raw[idxSku] || "").trim();
       if (!sku) continue;
-      var harga = toNumber(raw[idxHarga]);
+
+      var harga, recipe = null;
+      if (idxProduk > -1) {
+        // Format breakdown: total = Harga Produk Utama + Σ(qty bahan × harga bahan SAAT INI di
+        // root.materials). Disimpan juga resep mentahnya (skuRecipe) supaya kalau harga 1 bahan
+        // berubah nanti, total ini bisa dihitung ULANG tanpa perlu upload ulang filenya
+        // (lihat recomputeAllSkuCosts()).
+        var baseProduk = toNumber(raw[idxProduk]);
+        var materialsQty = {};
+        harga = baseProduk;
+        Object.keys(materialCols).forEach(function (name) {
+          var qty = toNumber(raw[materialCols[name]]);
+          if (qty > 0) {
+            materialsQty[name] = qty;
+            harga += qty * (root.materials[name] || 0);
+          }
+        });
+        recipe = { baseProduk: baseProduk, materials: materialsQty };
+      } else {
+        // Format lama: angka flat, tidak ada breakdown.
+        harga = toNumber(raw[idxHarga]);
+      }
       if (harga <= 0) continue;
 
       if (seenInFile.hasOwnProperty(sku) && seenInFile[sku] !== harga) {
@@ -1395,6 +1476,10 @@
       if (prev == null) added++;
       else if (prev !== harga) updated++;
       state.skuCost[sku] = harga;
+      // SKU yang diupload lewat format lama (flat) menurunkan resepnya kalau sebelumnya punya --
+      // angka yang baru diketik manual harus menang total, bukan ketiban recompute bahan lama.
+      if (recipe) state.skuRecipe[sku] = recipe;
+      else delete state.skuRecipe[sku];
     }
 
     var extraParts = [];
@@ -1402,6 +1487,26 @@
     if (conflicts.length) extraParts.push(conflicts.length + " ID SKU bentrok dalam file ini");
     logUpload("Harga Modal SKU", fileName, added, extraParts.join(", "));
     return { added: added, updated: updated, conflicts: conflicts };
+  }
+
+  // Dipanggil tiap kali root.materials berubah (tambah/edit harga/hapus bahan) -- jalan ulang
+  // formula "baseProduk + Σ(qty × harga bahan)" untuk SEMUA SKU yang punya skuRecipe, di
+  // KETIGA toko sekaligus (materials bersama, tapi skuRecipe per toko). SKU dari format lama
+  // (tanpa skuRecipe) tidak tersentuh sama sekali -- angkanya tetap flat seperti yang diketik.
+  // Bahan yang sudah dihapus dari root.materials dianggap kontribusi 0 (bukan error).
+  function recomputeAllSkuCosts() {
+    STORE_DEFS.forEach(function (s) {
+      var st = root.stores[s.id];
+      Object.keys(st.skuRecipe).forEach(function (sku) {
+        var r = st.skuRecipe[sku];
+        var total = r.baseProduk;
+        Object.keys(r.materials).forEach(function (name) {
+          var cost = root.materials[name];
+          if (cost != null) total += r.materials[name] * cost;
+        });
+        st.skuCost[sku] = total;
+      });
+    });
   }
 
   /* ================= Compute ================= */
@@ -1776,6 +1881,7 @@
       document.getElementById("upload-section").style.display = "";
       renderUploadStatus();
       renderLog();
+      renderMaterialsPanel();
       renderDashboard();
     }
     renderFooter();
@@ -1824,6 +1930,78 @@
       var tstr = d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" }) + " " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
       return '<div class="log-row"><span>' + esc(u.label) + " &mdash; " + esc(u.fileName) + " (" + u.rows + (u.extra ? ", " + esc(u.extra) : "") + ')</span><span class="t">' + tstr + "</span></div>";
     }).join("");
+  }
+
+  // Daftar Bahan -- bersama untuk 3 toko (root.materials, BUKAN di dalam state per-toko).
+  // Dipakai buat hitung otomatis Harga Modal SKU lewat format breakdown, lihat processModal()
+  // & recomputeAllSkuCosts(). Regenerasi + pasang ulang handler tiap baris sekaligus di sini
+  // (dipanggil ulang tiap render(), bukan cuma sekali di init) supaya selalu sinkron.
+  function renderMaterialsPanel() {
+    var el = document.getElementById("materials-list");
+    if (!el) return;
+    var names = Object.keys(root.materials).sort(function (a, b) { return a.localeCompare(b); });
+    if (!names.length) {
+      el.innerHTML = '<li style="color:var(--ink-faint);">Belum ada bahan. Tambahkan lewat form di bawah.</li>';
+      return;
+    }
+    el.innerHTML = names.map(function (name) {
+      return '<li data-material="' + esc(name) + '">' +
+        '<span class="name">' + esc(name) + '</span>' +
+        '<input type="number" min="0" step="1" class="material-cost-input" value="' + (root.materials[name] || 0) + '" />' +
+        '<button class="icon-btn" type="button" title="Hapus bahan" aria-label="Hapus bahan ' + esc(name) + '">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>' +
+        "</button></li>";
+    }).join("");
+    el.querySelectorAll("li[data-material]").forEach(function (li) {
+      var name = li.getAttribute("data-material");
+      var input = li.querySelector(".material-cost-input");
+      function saveCost() {
+        var val = toNumber(input.value);
+        if (val === root.materials[name]) return;
+        root.materials[name] = val;
+        recomputeAllSkuCosts();
+        persist("Harga bahan \"" + name + "\" diperbarui.");
+      }
+      input.addEventListener("blur", saveCost);
+      input.addEventListener("keydown", function (e) { if (e.key === "Enter") input.blur(); });
+      li.querySelector("button").addEventListener("click", function () {
+        // Cek pemakaian di SEMUA toko dulu -- kalau masih dipakai, minta konfirmasi eksplisit
+        // karena menghapus bahan bikin kontribusinya ke Harga Modal SKU yang pakai jadi Rp0
+        // begitu recomputeAllSkuCosts() jalan (lihat catatan di fungsi itu).
+        var usedBy = 0;
+        STORE_DEFS.forEach(function (s) {
+          var st = root.stores[s.id];
+          Object.keys(st.skuRecipe).forEach(function (sku) {
+            if (st.skuRecipe[sku].materials.hasOwnProperty(name)) usedBy++;
+          });
+        });
+        var msg = "Hapus bahan \"" + name + "\" dari Daftar Bahan?";
+        if (usedBy) msg += "\n\n" + usedBy + " SKU (di semua toko) masih pakai bahan ini di resepnya -- Harga Modal SKU-nya akan berkurang begitu bahan ini dihapus (dianggap kontribusi Rp0), resepnya sendiri tidak ikut terhapus.";
+        if (!confirm(msg)) return;
+        delete root.materials[name];
+        recomputeAllSkuCosts();
+        persist("Bahan \"" + name + "\" dihapus.");
+      });
+    });
+  }
+
+  function attachMaterialsHandlers() {
+    function addMaterial() {
+      var nameInput = document.getElementById("material-new-name");
+      var costInput = document.getElementById("material-new-cost");
+      var name = nameInput.value.trim();
+      if (!name) { nameInput.focus(); return; }
+      if (root.materials.hasOwnProperty(name)) { showToast("Bahan \"" + name + "\" sudah ada."); return; }
+      root.materials[name] = toNumber(costInput.value);
+      nameInput.value = ""; costInput.value = "";
+      renderMaterialsPanel();
+      persist("Bahan \"" + name + "\" ditambahkan.");
+      nameInput.focus();
+    }
+    document.getElementById("btn-add-material").addEventListener("click", addMaterial);
+    ["material-new-name", "material-new-cost"].forEach(function (id) {
+      document.getElementById(id).addEventListener("keydown", function (e) { if (e.key === "Enter") addMaterial(); });
+    });
   }
 
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -2604,7 +2782,8 @@
         stores[s.id] = Object.assign(freshDefaultState(), parsed.stores[s.id] || {});
       });
       var activeStore = STORE_DEFS.some(function (s) { return s.id === parsed.activeStore; }) ? parsed.activeStore : STORE_DEFS[0].id;
-      return { activeStore: activeStore, stores: stores };
+      var materials = (parsed.materials && typeof parsed.materials === "object") ? parsed.materials : {};
+      return { activeStore: activeStore, stores: stores, materials: materials };
     }
     if (parsed && typeof parsed === "object" && "pencairanRows" in parsed) {
       freshRoot.stores[STORE_DEFS[0].id] = Object.assign(freshDefaultState(), parsed);
@@ -3159,13 +3338,19 @@
     state = root.stores[root.activeStore];
     wireDropzone("file-pencairan", processPencairan, "Data Pencairan", PENCAIRAN_COLS, ["ID", "JENIS", "WPEMBAYARAN", "PENDAPATAN"]);
     wireDropzone("file-pesanan", processPesanan, "Data Pesanan", PESANAN_COLS, ["ORDER", "SKU", "QTY"]);
-    wireDropzone("file-modal", processModal, "Harga Modal", MODAL_COLS, ["SKU", "HARGA"], renderModalConflicts);
+    wireDropzone("file-modal", processModal, "Harga Modal", MODAL_COLS, ["SKU"], renderModalConflicts);
     initDragVisuals();
 
     document.getElementById("help-toggle").addEventListener("click", function () {
       document.getElementById("help-body").classList.toggle("open");
       this.classList.toggle("active");
     });
+    document.getElementById("materials-toggle").addEventListener("click", function () {
+      document.getElementById("materials-body").classList.toggle("open");
+      this.classList.toggle("active");
+    });
+    renderMaterialsPanel();
+    attachMaterialsHandlers();
     var modalToggle = document.getElementById("modal-toggle");
     function toggleModalBody() {
       var open = document.getElementById("modal-body").classList.toggle("open");
