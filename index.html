@@ -412,7 +412,7 @@
 
   <div id="boot-loading" class="card" style="padding:44px 20px;text-align:center;max-width:420px;margin:0 auto;">
     <div class="spinner" aria-hidden="true"></div>
-    <div style="margin-top:14px;color:var(--ink-muted);font-size:13.5px;">Memuat data dari GitHub&hellip;</div>
+    <div id="boot-loading-text" style="margin-top:14px;color:var(--ink-muted);font-size:13.5px;">Memuat data dari GitHub&hellip;</div>
   </div>
 
   <section id="upload-section" style="display:none;">
@@ -2970,15 +2970,30 @@
   // Muat root, pakai cache lokal kalau sha-nya masih sama dengan yang di GitHub sekarang --
   // menghindari download ulang file yang bisa belasan MB kalau memang tidak ada perubahan
   // sejak terakhir dibuka di browser ini.
+  // Update teks di spinner boot -- supaya kalau loading kerasa lama, USER SENDIRI bisa lihat
+  // tahap mana yang macet (cek sha vs download vs hitung) tanpa perlu buka console/DevTools.
+  // Juga di-log ke console dengan waktu tempuh tiap tahap buat ditelusuri lebih lanjut kalau perlu.
+  function setBootLoadingText(msg) {
+    var el = document.getElementById("boot-loading-text");
+    if (el) el.textContent = msg;
+    console.log("[boot] " + msg + " @ " + Math.round(performance.now()) + "ms");
+  }
+
   async function loadStateFromGithubCached(cfg) {
     var cacheKey = cfgCacheKey(cfg);
+    setBootLoadingText("Memeriksa data di GitHub…");
     var cached = await idbGetCache();
     var sha = await githubGetSha(cfg); // request kecil, terlepas dari ukuran file aslinya
     if (sha == null) return freshDefaultRoot(); // file belum pernah ada di GitHub
     if (cached && cached.cacheKey === cacheKey && cached.sha === sha) {
-      return normalizeToRoot(cached.root); // cache hit -- tidak perlu download ulang sama sekali
+      setBootLoadingText("Memuat dari cache lokal…");
+      var root1 = normalizeToRoot(cached.root); // cache hit -- tidak perlu download ulang sama sekali
+      setBootLoadingText("Cache lokal dimuat.");
+      return root1;
     }
+    setBootLoadingText("Mengunduh data dari GitHub… (bisa beberapa detik kalau datanya sudah besar)");
     var loadedRoot = await loadStateFromGithub(cfg); // cache miss/basi -- fetch penuh seperti biasa
+    setBootLoadingText("Data terunduh, menyimpan cache lokal…");
     idbSetCache({ cacheKey: cacheKey, sha: sha, root: loadedRoot });
     return loadedRoot;
   }
@@ -3535,8 +3550,11 @@
     // "nge-freeze" sesaat -- biarkan spinner tetap tampil sampai render() beres, baru semuanya
     // muncul sekaligus dalam keadaan sudah lengkap. rAF ganda di bawah cuma supaya browser
     // sempat menggambar frame spinner dulu sebelum thread diblok oleh compute yang berat.
+    setBootLoadingText("Menghitung ringkasan…");
     await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
+    var t0 = performance.now();
     render();
+    console.log("[boot] render() selesai dalam " + Math.round(performance.now() - t0) + "ms");
     document.getElementById("boot-loading").style.display = "none";
     document.getElementById("store-tabs").style.display = "flex";
     document.getElementById("upload-section").style.display = "";
