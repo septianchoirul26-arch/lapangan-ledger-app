@@ -1477,8 +1477,7 @@
         // salah baca diam-diam. Kalau hasilnya bukan persis "4" atau "5" (termasuk kosong), jadi
         // null -- diperlakukan sama seperti belum diisi (memicu status "data belum lengkap"),
         // BUKAN ditebak/diasumsikan salah satu ukuran.
-        var ukuranDigits = String(raw[idxUkuran] || "").replace(/[^0-9]/g, "");
-        var ukuranNormalized = (ukuranDigits === "4" || ukuranDigits === "5") ? ukuranDigits : null;
+        var ukuranNormalized = normalizeUkuran(raw[idxUkuran]);
         var tipePaketRaw = String(raw[idxTipePaket] || "").trim().toLowerCase();
         var tipePaket = tipePaketRaw.indexOf("lengkap") > -1 ? "paket-lengkap" : (tipePaketRaw ? "bola-saja" : null);
         meta = {
@@ -1521,6 +1520,15 @@
   // packing -- plastik_kecil/plastik_besar/kardus_kecil/kardus_besar/ikut_plastik_besar). Kalau
   // ada >1 bahan pakai role yang sama, yang pertama ketemu yang dipakai (UI Daftar Bahan sudah
   // memperingatkan soal ini, lihat attachMaterialsHandlers()).
+  // Satu-satunya penafsir nilai "Ukuran" di seluruh app -- dipakai processModal() (saat upload)
+  // DAN computeOrderPackingCost() (saat hitung). "4"/"Size 4"/"SIZE 4"/"size4"/" 4 " semua jadi "4".
+  // Apa pun yang bukan persis 4 atau 5 (termasuk kosong) jadi null = "belum diisi", supaya memicu
+  // status "data belum lengkap", BUKAN ditebak jadi salah satu ukuran.
+  function normalizeUkuran(raw) {
+    var digits = String(raw == null ? "" : raw).replace(/[^0-9]/g, "");
+    return (digits === "4" || digits === "5") ? digits : null;
+  }
+
   function findMaterialByRole(role) {
     var names = Object.keys(root.materials);
     for (var i = 0; i < names.length; i++) {
@@ -1558,7 +1566,13 @@
         qtyNonLokal += qty;
       } else if (meta.kategori === "lokal") {
         qtyLokal += qty;
-        var key = meta.ukuran || "?";
+        // Ukuran dinormalisasi ULANG di sini, bukan cuma waktu upload (processModal()) -- data yang
+        // sudah tersimpan dari versi lama menyimpan teks mentah ("Size 5"/"SIZE 5"), dan itu TIDAK
+        // pernah sama dengan "5" di rumus kapasitas di bawah, jadi diam-diam jatuh ke kapasitas 3
+        // (harusnya 2) alias kekurangan Plastik Besar. Dinormalisasi saat baca supaya data lama
+        // ikut benar tanpa perlu upload ulang, dan supaya jalur tulis manapun tidak bisa lagi
+        // menyelundupkan format tak terduga ke rumus.
+        var key = normalizeUkuran(meta.ukuran) || "?";
         lokalUkurans[key] = (lokalUkurans[key] || 0) + qty;
       }
       // meta.kategori == null (belum diisi/tidak dikenali) -- ikut qtyTotal (buat bahan universal
