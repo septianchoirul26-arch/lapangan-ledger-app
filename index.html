@@ -1565,7 +1565,7 @@
       // seperti Jaring Pentil/Label Resi), tapi TIDAK ikut qtyLokal/qtyNonLokal (tidak diketahui).
     });
 
-    if (!sawClassified) return { cost: 0, incomplete: false, qtyTotal: 0 };
+    if (!sawClassified) return { cost: 0, incomplete: false, qtyTotal: 0, materialsCost: {} };
 
     var materials = {}; // namaBahan -> qty terpakai
     function add(role, qty) {
