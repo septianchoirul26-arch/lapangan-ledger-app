@@ -312,6 +312,7 @@
   .field input[type=text]:focus, .field input[type=password]:focus { outline: none; border-color: var(--accent); }
 
   .help-toggle { font-size: 12.5px; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; background: none; border: none; padding: 0; font-family: var(--body); }
+  .help-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
   .icon-btn {
     appearance: none; border: 1px solid var(--line-strong); background: var(--surface);
     color: var(--ink-muted); width: 28px; height: 28px; border-radius: 8px;
@@ -470,6 +471,9 @@
           <p style="margin:0;">Upload file dengan kolom <code>ID SKU</code> dan <code>Harga Modal</code> (atau <code>Harga Produk</code> + <code>Kategori</code> + <code>Ukuran</code> + <code>Tipe Paket</code> supaya biaya packing dihitung otomatis per pesanan, lihat ikon <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path></svg> di atas). Boleh diupload ulang kapan saja untuk menambah SKU baru atau update harga yang sudah ada.</p>
         </div>
         <div id="modal-conflicts"></div>
+        <div style="margin-top:10px;">
+          <button type="button" id="btn-clear-modal" class="help-toggle" style="color:var(--danger);">Hapus semua Harga Modal SKU toko ini</button>
+        </div>
       </div>
       <div class="help-body" id="materials-body">
         <p class="note" style="margin:0 0 10px;">Daftar bahan kemasan &amp; harga per unit &mdash; <b>bersama untuk ketiga toko</b>. "Cara Hitung" nentuin berapa qty bahan itu dipakai per PESANAN (bukan per SKU) &mdash; lihat penjelasan tiap pilihan lewat ikon "?" di sebelah kolom Harga Modal SKU. Ubah harga/cara hitung di sini langsung berlaku ke semua bulan begitu halaman di-refresh, tidak perlu upload ulang apa pun.</p>
@@ -3050,6 +3054,11 @@
       document.getElementById(id).disabled = isBusy;
     });
     document.getElementById("store-tabs").classList.toggle("busy", isBusy);
+    var clearModalBtn = document.getElementById("btn-clear-modal");
+    if (clearModalBtn) {
+      clearModalBtn.disabled = isBusy;
+      clearModalBtn.textContent = isBusy ? "Menghapus & menyimpan..." : "Hapus semua Harga Modal SKU toko ini";
+    }
   }
 
   // Lewat platform downloads capability kalau dihosting sebagai Artifact (sandbox-nya blokir
@@ -3530,6 +3539,21 @@
       root.stores[root.activeStore] = state;
       setDataActionBusy(true);
       persist("Data toko " + storeName(root.activeStore) + " direset.").finally(function () {
+        setDataActionBusy(false);
+      });
+    });
+
+    // Hapus HANYA Harga Modal SKU (skuCost + skuMeta) toko aktif -- beda dari Reset Data yang
+    // menghapus semuanya termasuk Data Pencairan/Data Pesanan/riwayat. Dipakai user buat mulai
+    // bersih sebelum upload ulang SKU dengan format baru (lihat diskusi).
+    document.getElementById("btn-clear-modal").addEventListener("click", function () {
+      var count = Object.keys(state.skuCost).length;
+      if (!count) { showToast("Belum ada Harga Modal SKU di toko ini."); return; }
+      if (!confirm("Hapus semua Harga Modal SKU toko \"" + storeName(root.activeStore) + "\" (" + count.toLocaleString("id-ID") + " SKU)? Data Pencairan, Data Pesanan, dan riwayat upload TIDAK ikut terhapus. Tindakan ini tidak bisa dibatalkan.")) return;
+      state.skuCost = {};
+      state.skuMeta = {};
+      setDataActionBusy(true);
+      persist("Harga Modal SKU toko " + storeName(root.activeStore) + " dihapus.").finally(function () {
         setDataActionBusy(false);
       });
     });
