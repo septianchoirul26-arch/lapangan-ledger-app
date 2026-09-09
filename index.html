@@ -2898,6 +2898,25 @@
     return btoa(binary);
   }
 
+  // fetch() browser TIDAK punya timeout bawaan -- kalau koneksi macet/stall di tengah jalan
+  // (wifi jelek, VPN, proxy yang diam-diam buang paket, laptop baru bangun dari sleep, dsb),
+  // promise-nya bisa menggantung SELAMANYA: tidak pernah resolve, tidak pernah reject, jadi
+  // catch-nya (di bootWithConfig) tidak pernah kepanggil dan spinner boot diam di layar tanpa
+  // ada error yang pernah muncul -- ini penyebab paling masuk akal untuk laporan "loading 10
+  // menit lebih". Dibungkus AbortController supaya ada batas waktu jelas dan error yang jelas.
+  function fetchWithTimeout(url, opts, timeoutMs) {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+    return fetch(url, Object.assign({}, opts, { signal: controller.signal }))
+      .catch(function (e) {
+        if (e && e.name === "AbortError") {
+          throw new Error("Koneksi ke GitHub terlalu lama tidak merespons (lebih dari " + Math.round(timeoutMs / 1000) + " detik). Cek koneksi internet, lalu coba lagi.");
+        }
+        throw e;
+      })
+      .finally(function () { clearTimeout(timer); });
+  }
+
   // Ambil sha file saat ini (dibutuhkan GitHub untuk update) -- null kalau file belum ada.
   // cache:"no-store" penting -- tanpa ini browser bisa nyajiin GET lama dari cache-nya sendiri,
   // bikin sha yang didapat selalu basi walau sudah retry berkali-kali (409 tidak pernah sembuh).
@@ -2905,9 +2924,9 @@
   // file besar kalau Accept bukan raw) -- makanya ini dipakai juga sebagai cek murah "apa
   // datanya berubah?" di loadStateFromGithubCached() di bawah, tanpa perlu download semuanya.
   async function githubGetSha(cfg) {
-    var res = await fetch(githubContentsUrl(cfg) + "?ref=" + encodeURIComponent(cfg.branch || "main"), {
+    var res = await fetchWithTimeout(githubContentsUrl(cfg) + "?ref=" + encodeURIComponent(cfg.branch || "main"), {
       headers: githubHeaders(cfg), cache: "no-store"
-    });
+    }, 15000);
     if (res.status === 404) return null;
     if (res.status === 401 || res.status === 403) throw new Error("Token GitHub ditolak (kadaluarsa/salah scope). Cek Pengaturan Penyimpanan.");
     if (!res.ok) throw new Error("Gagal cek file di GitHub (HTTP " + res.status + ").");
@@ -3022,9 +3041,9 @@
   }
 
   async function loadStateFromGithub(cfg) {
-    var res = await fetch(githubContentsUrl(cfg) + "?ref=" + encodeURIComponent(cfg.branch || "main"), {
+    var res = await fetchWithTimeout(githubContentsUrl(cfg) + "?ref=" + encodeURIComponent(cfg.branch || "main"), {
       headers: githubHeaders(cfg, "application/vnd.github.v3.raw"), cache: "no-store"
-    });
+    }, 60000); // 60 detik -- file bisa belasan MB, kasih waktu lebih longgar dari cek sha
     if (res.status === 404) return freshDefaultRoot(); // belum pernah ada data tersimpan -- mulai kosong
     if (res.status === 401 || res.status === 403) throw new Error("Token GitHub ditolak (kadaluarsa/salah scope). Cek Pengaturan Penyimpanan.");
     if (!res.ok) throw new Error("Gagal memuat data dari GitHub (HTTP " + res.status + ").");
@@ -3049,11 +3068,11 @@
       branch: cfg.branch || "main"
     };
     if (sha) body.sha = sha;
-    var res = await fetch(githubContentsUrl(cfg), {
+    var res = await fetchWithTimeout(githubContentsUrl(cfg), {
       method: "PUT",
       headers: Object.assign(githubHeaders(cfg), { "Content-Type": "application/json" }),
       body: JSON.stringify(body)
-    });
+    }, 60000); // 60 detik -- payload-nya bisa belasan MB juga
     if (res.status === 409 && attempt < 5) {
       await new Promise(function (resolve) { setTimeout(resolve, 150 * (attempt + 1)); });
       return saveStateToGithub(cfg, stateObj, attempt + 1);
